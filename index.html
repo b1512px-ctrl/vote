@@ -60,9 +60,13 @@
             <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div>
                     <h1 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-calendar-check mr-2"></i>聚餐/活動日期投票</h1>
-                    <p class="text-blue-100 text-xs md:text-sm mt-1">
-                        <span id="header-greeting"></span> | 選出大家都有空的日期
-                    </p>
+                    <div class="flex items-center text-blue-100 text-xs md:text-sm mt-1 gap-2">
+                        <span id="header-greeting"></span> 
+                        <span>| 選出大家都有空的日期</span>
+                        <button id="logout-btn" class="bg-blue-700 hover:bg-blue-800 px-2 py-0.5 rounded text-xs transition-colors" title="切換使用者">
+                            <i class="fa-solid fa-right-from-bracket"></i> 登出
+                        </button>
+                    </div>
                 </div>
                 <div id="user-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
                     連接中...
@@ -128,7 +132,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // 引入 deleteDoc
         import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
@@ -173,29 +176,55 @@
         const appContainer = document.getElementById('app-container');
         const loginInput = document.getElementById('login-name-input');
         const loginBtn = document.getElementById('login-btn');
+        const logoutBtn = document.getElementById('logout-btn'); // 新增登出按鈕
         const headerGreeting = document.getElementById('header-greeting');
         const adminAddSection = document.getElementById('admin-add-section');
+
+        // ==========================================
+        //  初始化檢查 (SessionStorage)
+        // ==========================================
+        
+        // 頁面載入時，先檢查是否有暫存的名稱
+        const storedName = sessionStorage.getItem('vote_user_name');
+        if (storedName) {
+            userName = storedName;
+            setupUserUI(userName);
+        }
 
         // ==========================================
         //  登入畫面邏輯
         // ==========================================
 
-        loginBtn.addEventListener('click', enterApp);
+        loginBtn.addEventListener('click', () => enterApp());
         loginInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') enterApp();
         });
 
-        function enterApp() {
-            const inputVal = loginInput.value.trim();
+        // 登出功能
+        logoutBtn.addEventListener('click', () => {
+            if(confirm('確定要登出並切換使用者嗎？')) {
+                sessionStorage.removeItem('vote_user_name');
+                window.location.reload(); // 重新整理頁面以重置狀態
+            }
+        });
+
+        function enterApp(nameFromInput = null) {
+            const inputVal = nameFromInput || loginInput.value.trim();
             if (!inputVal) {
                 alert("請輸入暱稱！");
                 return;
             }
 
             userName = inputVal;
-            
+            // 儲存到 sessionStorage，關閉分頁後自動清除
+            sessionStorage.setItem('vote_user_name', userName);
+
+            setupUserUI(userName);
+        }
+
+        function setupUserUI(name) {
             // 權限判斷：只有輸入 "柱" 才是管理員
-            if (userName === '柱') {
+            if (name === '柱') {
                 isAdmin = true;
                 adminAddSection.classList.remove('hidden'); // 顯示新增區塊
             } else {
@@ -204,14 +233,9 @@
             }
 
             // 更新 UI
-            headerGreeting.textContent = `哈囉，${userName}`;
+            headerGreeting.textContent = `哈囉，${name}`;
             welcomeModal.classList.add('hidden');
             appContainer.classList.remove('hidden');
-
-            // 如果已經有資料，重新渲染以套用權限 (顯示/隱藏垃圾桶)
-            // 這裡不需要特別呼叫，因為 subscribeToVotes 會持續監聽並在 update 時使用最新的 isAdmin 狀態
-            // 但如果資料已經載入，我們需要手動觸發一次 render (透過簡單的閉包變數狀態更新通常會在下一次 snapshot 觸發，或者我們可以強制重繪)
-            // 由於 initApp 已經在背景跑了，我們讓 snapshot callback 自然處理即可。
         }
 
         // ==========================================
