@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多人日期投票 (通用版)</title>
+    <title>多人活動投票平台</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -26,6 +26,8 @@
         }
         .vote-card { transition: all 0.3s ease; }
         .vote-card:hover { transform: translateY(-2px); }
+        .event-card { transition: all 0.2s ease; }
+        .event-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         
         /* 歡迎畫面遮罩 */
         #welcome-modal {
@@ -35,96 +37,147 @@
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
 
-    <!-- 1. 歡迎登入畫面 (預設顯示) -->
+    <!-- 1. 歡迎登入畫面 -->
     <div id="welcome-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center transform transition-all scale-100">
             <div class="mb-6 text-blue-600">
-                <i class="fa-solid fa-calendar-check text-5xl"></i>
+                <i class="fa-solid fa-users-viewfinder text-5xl"></i>
             </div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">歡迎參加投票</h2>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">歡迎使用投票平台</h2>
             <p class="text-gray-500 mb-6 text-sm">請輸入您的名稱以繼續</p>
             
             <div class="space-y-4">
                 <input type="text" id="login-name-input" placeholder="請輸入暱稱 (例: 炭治郎)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-center text-lg placeholder-gray-400">
                 <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg">
-                    進入投票 <i class="fa-solid fa-arrow-right ml-2"></i>
+                    進入大廳 <i class="fa-solid fa-arrow-right ml-2"></i>
                 </button>
             </div>
             <p class="mt-4 text-xs text-gray-400">提示：特殊權限者請輸入專屬代號</p>
         </div>
     </div>
 
-    <!-- 2. 主應用程式 (預設隱藏) -->
-    <div id="app-container" class="hidden">
-        <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-10">
-            <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+    <!-- 2. 活動大廳 (Event Dashboard) -->
+    <div id="event-dashboard" class="hidden min-h-screen pb-10">
+        <header class="bg-indigo-600 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
                 <div>
-                    <h1 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-calendar-check mr-2"></i>聚餐/活動日期投票</h1>
-                    <div class="flex items-center text-blue-100 text-xs md:text-sm mt-1 gap-2">
-                        <span id="header-greeting"></span> 
-                        <span>| 選出大家都有空的日期</span>
-                        <button id="logout-btn" class="bg-blue-700 hover:bg-blue-800 px-2 py-0.5 rounded text-xs transition-colors" title="切換使用者">
-                            <i class="fa-solid fa-right-from-bracket"></i> 登出
+                    <h1 class="text-xl font-bold"><i class="fa-solid fa-house mr-2"></i>活動大廳</h1>
+                    <div class="flex items-center text-indigo-100 text-xs mt-1 gap-2">
+                        <span id="dashboard-greeting"></span>
+                        <button id="dashboard-logout-btn" class="bg-indigo-700 hover:bg-indigo-800 px-2 py-0.5 rounded text-xs transition-colors">
+                            登出
                         </button>
                     </div>
                 </div>
-                <div id="user-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
+                <div class="text-xs bg-indigo-700 px-3 py-1 rounded-full hidden md:block" id="dashboard-status">
                     連接中...
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-4 py-6">
+            <!-- 新增活動區塊 -->
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h2 class="text-lg font-semibold mb-4 text-gray-700 border-b pb-2">發起新活動</h2>
+                <div class="flex flex-col md:flex-row gap-3">
+                    <input type="text" id="new-event-title" placeholder="活動主題 (例: 部門聚餐、週末打球...)" class="flex-1 border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50">
+                    <button id="create-event-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg font-medium transition-colors shadow-sm whitespace-nowrap">
+                        <i class="fa-solid fa-plus mr-1"></i> 建立活動
+                    </button>
+                </div>
+            </div>
+
+            <!-- 活動列表 -->
+            <div class="mb-4 flex justify-between items-end">
+                <h2 class="text-xl font-bold text-gray-800">進行中的活動</h2>
+                <span class="text-sm text-gray-500">點擊卡片進入投票</span>
+            </div>
+
+            <div id="events-loader" class="flex justify-center py-10">
+                <div class="loader"></div>
+            </div>
+
+            <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- JS 動態生成活動卡片 -->
+            </div>
+            
+            <div id="no-events-msg" class="hidden text-center py-12 text-gray-400 bg-white rounded-xl shadow-sm border border-dashed border-gray-300">
+                <i class="fa-regular fa-folder-open text-4xl mb-3"></i>
+                <p>目前沒有活動，趕快發起一個吧！</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. 投票頁面 (Voting View) -->
+    <div id="voting-view" class="hidden min-h-screen pb-10">
+        <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-3xl mx-auto px-4 py-4">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <button id="back-to-dashboard-btn" class="text-blue-100 hover:text-white text-sm mb-1 flex items-center transition-colors">
+                            <i class="fa-solid fa-chevron-left mr-1"></i> 回到大廳
+                        </button>
+                        <h1 id="current-event-title" class="text-xl md:text-2xl font-bold">活動標題載入中...</h1>
+                        <p class="text-blue-100 text-xs md:text-sm mt-1">
+                            <span id="voting-greeting"></span>
+                        </p>
+                    </div>
+                    <div id="voting-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
+                        ...
+                    </div>
                 </div>
             </div>
         </header>
 
         <main class="max-w-3xl mx-auto px-4 py-6">
             
-            <!-- 設定錯誤警告 -->
+            <!-- 錯誤警告 -->
             <div id="config-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden" role="alert">
                 <p class="font-bold">設定尚未完成</p>
-                <p>若您是在 GitHub Pages 上執行，請打開 index.html 檔案，將您的 Firebase Config 填入程式碼中的設定區塊。</p>
+                <p>請填入 Firebase Config。</p>
             </div>
-
-            <!-- 規則權限警告 -->
             <div id="permission-warning" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden" role="alert">
-                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 資料無法儲存/讀取</p>
-                <p class="text-sm mt-1">請檢查 Firebase Console -> Firestore Database -> 「規則 (Rules)」。<br>確保規則允許讀寫 (例如設為 true)。</p>
+                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 權限錯誤</p>
+                <p class="text-sm">請檢查 Firestore Rules 是否設為測試模式 (allow read, write: if true;)。</p>
             </div>
 
-            <!-- 新增選項區塊 (預設隱藏，只有管理員可見) -->
-            <div id="admin-add-section" class="bg-white rounded-xl shadow-md p-4 mb-6 hidden border-2 border-indigo-100">
-                <div class="flex items-center mb-3">
-                    <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded mr-2">管理員功能</span>
-                    <h2 class="text-lg font-semibold text-gray-700">新增選項</h2>
-                </div>
+            <!-- 新增選項區塊 (開放給所有人) -->
+            <div class="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-100">
+                <h2 class="text-lg font-semibold mb-3 text-gray-700">
+                    <i class="fa-solid fa-calendar-plus text-blue-500 mr-1"></i> 新增投票選項
+                </h2>
                 <div class="flex flex-col md:flex-row gap-2">
-                    <input type="date" id="new-date-input" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    <input type="text" id="new-note-input" placeholder="備註 (例: 午餐、18:30)" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    <button id="add-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm min-w-[100px]">
+                    <input type="date" id="new-vote-date" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐、18:30)" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <button id="add-vote-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm min-w-[100px]">
                         <i class="fa-solid fa-plus mr-1"></i> 新增
                     </button>
                 </div>
                 <p id="error-msg" class="text-red-500 text-sm mt-2 hidden"></p>
             </div>
 
+            <!-- 投票列表 -->
             <div class="bg-white rounded-xl shadow-md overflow-hidden">
                 <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-gray-700">投票排行榜</h2>
                     <span class="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">即時更新</span>
                 </div>
                 
-                <div id="loading-spinner" class="flex justify-center items-center py-10">
+                <div id="voting-loader" class="flex justify-center items-center py-10">
                     <div class="loader"></div>
                 </div>
 
                 <div id="vote-list" class="divide-y divide-gray-100 min-h-[200px]"></div>
                 
-                <div id="empty-state" class="hidden flex-col items-center justify-center py-12 text-gray-400">
+                <div id="voting-empty-state" class="hidden flex-col items-center justify-center py-12 text-gray-400">
                     <i class="fa-regular fa-calendar-xmark text-4xl mb-3"></i>
                     <p>目前還沒有任何選項</p>
-                    <p class="text-sm">等待管理員新增日期...</p>
+                    <p class="text-sm">請在上方新增日期開始投票</p>
                 </div>
             </div>
-
-            <div class="mt-6 text-center text-gray-400 text-xs">
-                <p>您的 ID: <span id="mobile-user-id">...</span></p>
+            
+            <div id="admin-hint" class="mt-4 text-center text-xs text-gray-300 hidden">
+                <i class="fa-solid fa-shield-halved"></i> 管理員模式已啟用
             </div>
         </main>
     </div>
@@ -132,10 +185,10 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
-        //  設定區域 (Config Area)
+        //  設定區域
         // ==========================================
         
         let firebaseConfig;
@@ -170,73 +223,120 @@
         // 狀態變數
         let userName = '';
         let isAdmin = false;
+        let currentEventId = null;
+        let unsubscribeEvents = null;
+        let unsubscribeVotes = null;
+
+        // 集合名稱
+        const EVENTS_COL = 'events';
+        const VOTES_COL = 'votes';
 
         // DOM Elements
+        // Login
         const welcomeModal = document.getElementById('welcome-modal');
-        const appContainer = document.getElementById('app-container');
         const loginInput = document.getElementById('login-name-input');
         const loginBtn = document.getElementById('login-btn');
-        const logoutBtn = document.getElementById('logout-btn'); // 新增登出按鈕
-        const headerGreeting = document.getElementById('header-greeting');
-        const adminAddSection = document.getElementById('admin-add-section');
+        
+        // Dashboard
+        const eventDashboard = document.getElementById('event-dashboard');
+        const dashboardGreeting = document.getElementById('dashboard-greeting');
+        const dashboardLogoutBtn = document.getElementById('dashboard-logout-btn');
+        const newEventTitle = document.getElementById('new-event-title');
+        const createEventBtn = document.getElementById('create-event-btn');
+        const eventsList = document.getElementById('events-list');
+        const noEventsMsg = document.getElementById('no-events-msg');
+        const eventsLoader = document.getElementById('events-loader');
+        
+        // Voting
+        const votingView = document.getElementById('voting-view');
+        const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+        const currentEventTitleEl = document.getElementById('current-event-title');
+        const votingGreeting = document.getElementById('voting-greeting');
+        const newVoteDate = document.getElementById('new-vote-date');
+        const newVoteNote = document.getElementById('new-vote-note');
+        const addVoteBtn = document.getElementById('add-vote-btn');
+        const voteListEl = document.getElementById('vote-list');
+        const votingLoader = document.getElementById('voting-loader');
+        const votingEmptyState = document.getElementById('voting-empty-state');
+        const adminHint = document.getElementById('admin-hint');
+        const errorMsg = document.getElementById('error-msg');
 
         // ==========================================
-        //  初始化檢查 (SessionStorage)
+        //  初始化流程
         // ==========================================
         
-        // 頁面載入時，先檢查是否有暫存的名稱
         const storedName = sessionStorage.getItem('vote_user_name');
         if (storedName) {
-            userName = storedName;
-            setupUserUI(userName);
+            login(storedName);
         }
 
-        // ==========================================
-        //  登入畫面邏輯
-        // ==========================================
-
-        loginBtn.addEventListener('click', () => enterApp());
+        loginBtn.addEventListener('click', () => handleLoginClick());
         loginInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') enterApp();
+            if (e.key === 'Enter') handleLoginClick();
         });
 
-        // 登出功能
-        logoutBtn.addEventListener('click', () => {
-            if(confirm('確定要登出並切換使用者嗎？')) {
-                sessionStorage.removeItem('vote_user_name');
-                window.location.reload(); // 重新整理頁面以重置狀態
-            }
-        });
-
-        function enterApp(nameFromInput = null) {
-            const inputVal = nameFromInput || loginInput.value.trim();
-            if (!inputVal) {
-                alert("請輸入暱稱！");
-                return;
-            }
-
-            userName = inputVal;
-            // 儲存到 sessionStorage，關閉分頁後自動清除
-            sessionStorage.setItem('vote_user_name', userName);
-
-            setupUserUI(userName);
+        function handleLoginClick() {
+            const val = loginInput.value.trim();
+            if (!val) return alert("請輸入暱稱！");
+            sessionStorage.setItem('vote_user_name', val);
+            login(val);
         }
 
-        function setupUserUI(name) {
-            // 權限判斷：只有輸入 "柱" 才是管理員
-            if (name === '柱') {
-                isAdmin = true;
-                adminAddSection.classList.remove('hidden'); // 顯示新增區塊
-            } else {
-                isAdmin = false;
-                adminAddSection.classList.add('hidden'); // 隱藏新增區塊
-            }
-
-            // 更新 UI
-            headerGreeting.textContent = `哈囉，${name}`;
+        function login(name) {
+            userName = name;
+            isAdmin = (name === '柱');
+            
+            // UI 更新
+            dashboardGreeting.textContent = `Hi, ${userName}`;
+            votingGreeting.textContent = `Hi, ${userName}`;
             welcomeModal.classList.add('hidden');
-            appContainer.classList.remove('hidden');
+            
+            // 預設進入 Dashboard
+            showDashboard();
+            
+            if (isAdmin) {
+                adminHint.classList.remove('hidden');
+            }
         }
+
+        dashboardLogoutBtn.addEventListener('click', () => {
+            if(confirm('確定要登出嗎？')) {
+                sessionStorage.removeItem('vote_user_name');
+                window.location.reload();
+            }
+        });
+
+        // ==========================================
+        //  頁面切換
+        // ==========================================
+
+        function showDashboard() {
+            votingView.classList.add('hidden');
+            eventDashboard.classList.remove('hidden');
+            
+            // 取消投票監聽，開啟活動監聽
+            if (unsubscribeVotes) {
+                unsubscribeVotes();
+                unsubscribeVotes = null;
+            }
+            if (!unsubscribeEvents && db) {
+                subscribeToEvents();
+            }
+        }
+
+        function showVoting(evtId, evtTitle) {
+            currentEventId = evtId;
+            currentEventTitleEl.textContent = evtTitle;
+            
+            eventDashboard.classList.add('hidden');
+            votingView.classList.remove('hidden');
+            
+            // 取消活動監聽(可選)，開啟投票監聽
+            // 這裡我們保留活動監聽，方便返回時不需要重新讀取
+            subscribeToVotes(evtId);
+        }
+
+        backToDashboardBtn.addEventListener('click', showDashboard);
 
         // ==========================================
         //  Firebase 初始化
@@ -244,7 +344,6 @@
 
         if (!firebaseConfig || !firebaseConfig.apiKey) {
             document.getElementById('config-warning').classList.remove('hidden');
-            document.getElementById('loading-spinner').style.display = 'none';
         } else {
             initApp();
         }
@@ -261,46 +360,144 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Login failed", error);
-                if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-                    showError("登入失敗：請至 Firebase Console -> Authentication 啟用「匿名登入」。");
-                } else {
-                    showError("登入失敗: " + error.message);
-                }
+                console.error("Login error:", error);
+                // 忽略錯誤顯示，依賴後續操作檢查
             }
 
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
-                    document.getElementById('user-status').textContent = `User: ${user.uid.substring(0, 6)}...`;
-                    document.getElementById('mobile-user-id').textContent = user.uid;
-                    subscribeToVotes();
-                } else {
-                    document.getElementById('user-status').textContent = "未連線";
+                    document.getElementById('dashboard-status').textContent = `ID: ${user.uid.substring(0,4)}`;
+                    document.getElementById('voting-status').textContent = `ID: ${user.uid.substring(0,4)}`;
+                    
+                    // 如果已經在 dashboard 頁面，開始監聽
+                    if (!eventDashboard.classList.contains('hidden')) {
+                        subscribeToEvents();
+                    }
                 }
             });
         }
 
         // ==========================================
-        //  資料監聽與操作
+        //  [Dashboard] 活動管理邏輯
         // ==========================================
 
-        function subscribeToVotes() {
-            let colRef;
-            if (isPreviewEnv) {
-                 colRef = collection(db, 'artifacts', appId, 'public', 'data', 'voting_dates');
-            } else {
-                 colRef = collection(db, 'voting_dates');
-            }
+        function subscribeToEvents() {
+            if (unsubscribeEvents) return; // 避免重複監聽
 
-            onSnapshot(colRef, (snapshot) => {
-                document.getElementById('loading-spinner').style.display = 'none';
-                const dates = [];
+            const colPath = getCollectionPath(EVENTS_COL);
+            const q = query(collection(db, ...colPath), orderBy('createdAt', 'desc'));
+
+            unsubscribeEvents = onSnapshot(q, (snapshot) => {
+                eventsLoader.style.display = 'none';
+                const events = [];
                 snapshot.forEach(doc => {
-                    dates.push({ id: doc.id, ...doc.data() });
+                    events.push({ id: doc.id, ...doc.data() });
+                });
+                renderEvents(events);
+            }, (error) => {
+                console.error("Events Error:", error);
+                eventsLoader.style.display = 'none';
+                if (error.code === 'permission-denied') {
+                    document.getElementById('permission-warning').classList.remove('hidden');
+                }
+            });
+        }
+
+        function renderEvents(events) {
+            eventsList.innerHTML = '';
+            if (events.length === 0) {
+                noEventsMsg.classList.remove('hidden');
+                return;
+            }
+            noEventsMsg.classList.add('hidden');
+
+            events.forEach(evt => {
+                const dateStr = evt.createdAt ? new Date(evt.createdAt.toDate()).toLocaleDateString() : '剛剛';
+                
+                const card = document.createElement('div');
+                card.className = "event-card bg-white p-5 rounded-xl shadow border border-gray-100 cursor-pointer flex justify-between items-center group";
+                card.innerHTML = `
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">${evt.title}</h3>
+                        <p class="text-xs text-gray-500 mt-1"><i class="fa-regular fa-clock mr-1"></i>建立於 ${dateStr} <span class="mx-1">|</span> 發起人: ${evt.creator || '匿名'}</p>
+                    </div>
+                    <div class="text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all">
+                        <i class="fa-solid fa-chevron-right text-xl"></i>
+                    </div>
+                `;
+                card.onclick = () => showVoting(evt.id, evt.title);
+                eventsList.appendChild(card);
+            });
+        }
+
+        createEventBtn.addEventListener('click', async () => {
+            const title = newEventTitle.value.trim();
+            if (!title) return alert("請輸入活動標題");
+            if (!currentUser) return alert("連線中，請稍後");
+
+            createEventBtn.disabled = true;
+            createEventBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                const colPath = getCollectionPath(EVENTS_COL);
+                await addDoc(collection(db, ...colPath), {
+                    title: title,
+                    creator: userName,
+                    createdBy: currentUser.uid,
+                    createdAt: serverTimestamp()
+                });
+                newEventTitle.value = '';
+            } catch (err) {
+                console.error(err);
+                alert("建立失敗: " + err.message);
+            } finally {
+                createEventBtn.disabled = false;
+                createEventBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> 建立活動';
+            }
+        });
+
+        // ==========================================
+        //  [Voting] 投票管理邏輯
+        // ==========================================
+
+        function subscribeToVotes(evtId) {
+            if (unsubscribeVotes) {
+                unsubscribeVotes();
+            }
+            votingLoader.style.display = 'flex';
+            voteListEl.innerHTML = '';
+
+            // 使用簡單的 fetch + client side filter 避免 index 問題
+            // 在大規模應用應該用 query(where('eventId', '==', evtId))
+            // 這裡嘗試直接用 client filter 以防測試環境 index 報錯
+            // 為了效能，我們先試試看 where，如果報錯(index needed)，使用者需要去建 index
+            // 但因為是測試環境，我們先抓全部再過濾 (僅適用於小量資料)
+            // 修正：為了正確性，還是應該使用 Collection Group 或簡單的集合結構
+            // 這裡採用: 所有 votes 都在同一個集合，但我們會嘗試只監聽該 eventId 的資料
+            
+            const colPath = getCollectionPath(VOTES_COL);
+            // 為了不讓使用者去建 index，我們這裡不使用 orderBy 混合 where
+            // 只做一個簡單的 filtering
+            // 注意：Canvas 環境沒有 console 可以建 index，所以盡量不要用複合查詢
+            
+            // 策略：監聽所有 votes (若資料量不大)，或使用單一 where
+            // 讓我們試試單一 where
+            const q = query(collection(db, ...colPath));
+
+            unsubscribeVotes = onSnapshot(q, (snapshot) => {
+                votingLoader.style.display = 'none';
+                const allVotes = [];
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    // 前端過濾 (Client-side filtering)
+                    if (data.eventId === evtId) {
+                        allVotes.push({ id: doc.id, ...data });
+                    }
                 });
 
-                dates.sort((a, b) => {
+                // 排序：票數高 -> 低, 日期 早 -> 晚
+                allVotes.sort((a, b) => {
                     const countA = a.voters ? a.voters.length : 0;
                     const countB = b.voters ? b.voters.length : 0;
                     if (countB !== countA) return countB - countA;
@@ -309,33 +506,26 @@
                     return dateA - dateB;
                 });
 
-                renderVotes(dates);
+                renderVotes(allVotes);
             }, (error) => {
-                console.error("Snapshot Error:", error);
-                document.getElementById('loading-spinner').style.display = 'none';
-                if (error.code === 'permission-denied') {
-                    document.getElementById('permission-warning').classList.remove('hidden');
-                }
+                console.error("Votes Error:", error);
+                votingLoader.style.display = 'none';
             });
         }
 
-        const voteListEl = document.getElementById('vote-list');
-        const emptyState = document.getElementById('empty-state');
-
-        function renderVotes(dates) {
+        function renderVotes(votes) {
             voteListEl.innerHTML = '';
-            if (dates.length === 0) {
-                emptyState.classList.remove('hidden');
-                emptyState.classList.add('flex');
+            if (votes.length === 0) {
+                votingEmptyState.classList.remove('hidden');
+                votingEmptyState.classList.add('flex');
                 return;
-            } else {
-                emptyState.classList.add('hidden');
-                emptyState.classList.remove('flex');
             }
+            votingEmptyState.classList.add('hidden');
+            votingEmptyState.classList.remove('flex');
 
-            const maxVotes = dates.length > 0 ? Math.max(...dates.map(d => d.voters ? d.voters.length : 0)) : 0;
+            const maxVotes = votes.length > 0 ? Math.max(...votes.map(d => d.voters ? d.voters.length : 0)) : 0;
 
-            dates.forEach((item, index) => {
+            votes.forEach((item, index) => {
                 const voters = item.voters || [];
                 const voteCount = voters.length;
                 const hasVoted = currentUser && voters.includes(currentUser.uid);
@@ -347,8 +537,7 @@
                 const formattedDate = `${item.date} (${dayName})`;
                 const noteText = item.note ? `<span class="ml-2 text-sm text-blue-600 bg-blue-100 px-2 py-0.5 rounded">${item.note}</span>` : '';
 
-                // 管理員專屬：刪除按鈕
-                // 注意：這裡使用 onclick 傳遞 ID，我們將 deleteVote 設為 window 全域函數以便呼叫
+                // 刪除按鈕 (僅管理員)
                 const deleteBtn = isAdmin ? `
                     <button onclick="window.deleteVote('${item.id}', event)" class="w-8 h-8 rounded-full bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400 flex items-center justify-center transition-all ml-2 shadow-sm z-20" title="刪除此選項">
                         <i class="fa-solid fa-trash-can"></i>
@@ -384,44 +573,65 @@
                         </div>
                     </div>
                 `;
-                // 點擊卡片投票
                 li.onclick = () => handleVote(item.id, hasVoted);
                 voteListEl.appendChild(li);
             });
         }
 
-        // 將刪除功能掛載到 Window 以便 onclick 呼叫
-        window.deleteVote = async function(docId, event) {
-            // 阻止冒泡，避免觸發卡片的投票功能
-            event.stopPropagation();
+        // 新增投票選項 (現在開放給所有人)
+        addVoteBtn.addEventListener('click', async () => {
+            const dateVal = newVoteDate.value;
+            const noteVal = newVoteNote.value.trim();
+
+            if (!dateVal) return showError("請選擇日期");
+            if (!currentUser) return showError("尚未連線");
             
-            if (!confirm("確定要刪除這個選項嗎？此操作無法復原。")) {
-                return;
-            }
+            const originalBtnHtml = addVoteBtn.innerHTML;
+            addVoteBtn.disabled = true;
+            addVoteBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
             try {
-                let docRef;
-                if (isPreviewEnv) {
-                    docRef = doc(db, 'artifacts', appId, 'public', 'data', 'voting_dates', docId);
-                } else {
-                    docRef = doc(db, 'voting_dates', docId);
-                }
-                await deleteDoc(docRef);
+                const colPath = getCollectionPath(VOTES_COL);
+                
+                // 必須包含 eventId 以便關聯
+                await addDoc(collection(db, ...colPath), {
+                    eventId: currentEventId,
+                    date: dateVal,
+                    note: noteVal,
+                    voters: [],
+                    creator: userName,
+                    createdAt: serverTimestamp()
+                });
+                
+                newVoteDate.value = '';
+                newVoteNote.value = '';
+            } catch (error) {
+                console.error("Add vote failed:", error);
+                showError("新增失敗: " + error.message);
+            } finally {
+                addVoteBtn.disabled = false;
+                addVoteBtn.innerHTML = originalBtnHtml;
+            }
+        });
+
+        // 刪除與投票邏輯
+        window.deleteVote = async function(docId, event) {
+            event.stopPropagation();
+            if (!confirm("確定要刪除這個選項嗎？")) return;
+
+            try {
+                const colPath = getCollectionPath(VOTES_COL);
+                await deleteDoc(doc(db, ...colPath, docId));
             } catch (error) {
                 console.error("Delete failed:", error);
-                showError("刪除失敗: " + error.message);
+                alert("刪除失敗");
             }
         };
 
         async function handleVote(docId, hasVoted) {
             if (!currentUser) return showError("尚未連線");
-            
-            let docRef;
-            if (isPreviewEnv) {
-                docRef = doc(db, 'artifacts', appId, 'public', 'data', 'voting_dates', docId);
-            } else {
-                docRef = doc(db, 'voting_dates', docId);
-            }
+            const colPath = getCollectionPath(VOTES_COL);
+            const docRef = doc(db, ...colPath, docId);
 
             try {
                 if (hasVoted) {
@@ -430,72 +640,25 @@
                     await updateDoc(docRef, { voters: arrayUnion(currentUser.uid) });
                 }
             } catch (error) {
-                console.error("Voting failed:", error);
-                if (error.code === 'permission-denied') {
-                     showError("投票失敗：權限不足，請檢查規則。");
-                } else {
-                     showError("投票失敗: " + error.message);
-                }
+                console.error("Vote failed:", error);
+                showError("投票失敗");
             }
         }
 
-        const addBtn = document.getElementById('add-btn');
-        const newDateInput = document.getElementById('new-date-input');
-        const newNoteInput = document.getElementById('new-note-input');
-        const errorMsg = document.getElementById('error-msg');
-
-        addBtn.addEventListener('click', async () => {
-            const dateVal = newDateInput.value;
-            const noteVal = newNoteInput.value.trim();
-
-            if (!dateVal) return showError("請選擇日期");
-            if (!currentUser) return showError("尚未連線");
-            
-            const originalBtnHtml = addBtn.innerHTML;
-            addBtn.disabled = true;
-            addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-
-            try {
-                let colRef;
-                if (isPreviewEnv) {
-                    colRef = collection(db, 'artifacts', appId, 'public', 'data', 'voting_dates');
-                } else {
-                    colRef = collection(db, 'voting_dates');
-                }
-
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("連線逾時，請檢查網路或權限設定")), 5000)
-                );
-
-                await Promise.race([
-                    addDoc(colRef, {
-                        date: dateVal,
-                        note: noteVal,
-                        voters: [],
-                        createdAt: serverTimestamp()
-                    }),
-                    timeoutPromise
-                ]);
-                
-                newDateInput.value = '';
-                newNoteInput.value = '';
-            } catch (error) {
-                console.error("Add failed:", error);
-                if (error.code === 'permission-denied') {
-                     showError("新增失敗：權限不足。請檢查 Firestore 是否設為測試模式？");
-                } else {
-                     showError("新增失敗: " + error.message);
-                }
-            } finally {
-                addBtn.disabled = false;
-                addBtn.innerHTML = originalBtnHtml;
+        // Helper: 取得路徑 (依環境不同)
+        function getCollectionPath(colName) {
+            if (isPreviewEnv) {
+                // Rule: artifacts/{appId}/public/data/{collectionName}
+                return ['artifacts', appId, 'public', 'data', colName];
+            } else {
+                return [colName];
             }
-        });
+        }
 
         function showError(msg) {
             errorMsg.textContent = msg;
             errorMsg.classList.remove('hidden');
-            setTimeout(() => errorMsg.classList.add('hidden'), 5000);
+            setTimeout(() => errorMsg.classList.add('hidden'), 3000);
         }
     </script>
 </body>
