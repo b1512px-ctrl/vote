@@ -323,9 +323,6 @@
 
             if (!dateVal) return showError("請選擇日期");
             if (!currentUser) return showError("尚未連線");
-
-            // 保存原始按鈕文字
-            const originalBtnHtml = addBtn.innerHTML;
             
             // 設定為處理中狀態
             addBtn.disabled = true;
@@ -340,14 +337,23 @@
                     colRef = collection(db, 'voting_dates');
                 }
 
-                // 改用 addDoc，這樣可以重複新增相同的日期 (只要 ID 不同)
-                await addDoc(colRef, {
-                    date: dateVal,
-                    note: noteVal, // 新增備註
-                    voters: [], // 初始化投票者
-                    createdAt: serverTimestamp()
-                });
+                // 建立一個 5 秒超時的 Promise
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("連線逾時，請檢查網路或權限設定")), 5000)
+                );
+
+                // 同時執行新增資料與超時檢查
+                await Promise.race([
+                    addDoc(colRef, {
+                        date: dateVal,
+                        note: noteVal,
+                        voters: [],
+                        createdAt: serverTimestamp()
+                    }),
+                    timeoutPromise
+                ]);
                 
+                // 成功後清空輸入
                 newDateInput.value = '';
                 newNoteInput.value = '';
             } catch (error) {
@@ -358,9 +364,9 @@
                      showError("新增失敗: " + error.message);
                 }
             } finally {
-                // 無論成功失敗，都恢復按鈕狀態
+                // 無論成功失敗，都強制恢復按鈕狀態
                 addBtn.disabled = false;
-                addBtn.innerHTML = originalBtnHtml;
+                addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> 新增';
             }
         });
 
