@@ -162,13 +162,12 @@
         if (!firebaseConfig) {
             firebaseConfig = {
                 // ⚠️ 請替換成您的設定 ⚠️
-                apiKey: "AIzaSyDQiHjNozV07Q8y6XtqGSAMcCnOEaGhPqM",
-  				authDomain: "vote-7e8d0.firebaseapp.com",
-  				projectId: "vote-7e8d0",
-  				storageBucket: "vote-7e8d0.firebasestorage.app",
-  				messagingSenderId: "218847236466",
-  				appId: "1:218847236466:web:d1904b9ec032ac35a7cdeb",
-  				measurementId: "G-HKJ9QSFB5L"
+                apiKey: "您的_API_KEY",
+                authDomain: "您的專案.firebaseapp.com",
+                projectId: "您的專案ID",
+                storageBucket: "...",
+                messagingSenderId: "...",
+                appId: "..."
             };
         }
 
@@ -248,10 +247,11 @@
         // 執行訪客登入
         async function performGuestLogin(name) {
             try {
-                await signInAnonymously(auth);
-                // 用 sessionStorage 存名字顯示就好
+                // 修正：先存名字再登入，避免 onAuthStateChanged 跑太快導致 UI 顯示 Guest: Guest
                 sessionStorage.setItem('display_name', name);
+                await signInAnonymously(auth);
             } catch (error) {
+                sessionStorage.removeItem('display_name'); // 失敗則清除
                 loginMsg.textContent = '登入失敗: ' + error.message;
             }
         }
@@ -287,7 +287,10 @@
         }
 
         document.getElementById('logout-btn').onclick = () => {
-            if(confirm('確定要登出嗎？')) signOut(auth);
+            if(confirm('確定要登出嗎？')) {
+                sessionStorage.removeItem('display_name'); // 修正：登出時清除顯示名稱，避免下次登入顯示錯誤
+                signOut(auth);
+            }
         };
 
         // --- UI Logic ---
@@ -521,4 +524,3 @@
     </script>
 </body>
 </html>
-
