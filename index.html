@@ -26,83 +26,115 @@
         }
         .vote-card { transition: all 0.3s ease; }
         .vote-card:hover { transform: translateY(-2px); }
+        
+        /* 歡迎畫面遮罩 */
+        #welcome-modal {
+            background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
 
-    <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-10">
-        <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-calendar-check mr-2"></i>聚餐/活動日期投票</h1>
-                <p class="text-blue-100 text-xs md:text-sm mt-1">選出大家都有空的日期 (可複選)</p>
+    <!-- 1. 歡迎登入畫面 (預設顯示) -->
+    <div id="welcome-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center transform transition-all scale-100">
+            <div class="mb-6 text-blue-600">
+                <i class="fa-solid fa-calendar-check text-5xl"></i>
             </div>
-            <div id="user-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
-                連接中...
-            </div>
-        </div>
-    </header>
-
-    <main class="max-w-3xl mx-auto px-4 py-6">
-        
-        <!-- 設定錯誤警告 -->
-        <div id="config-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden" role="alert">
-            <p class="font-bold">設定尚未完成</p>
-            <p>若您是在 GitHub Pages 上執行，請打開 index.html 檔案，將您的 Firebase Config 填入程式碼中的設定區塊。</p>
-        </div>
-
-        <!-- 規則權限警告 (新增) -->
-        <div id="permission-warning" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden" role="alert">
-            <p class="font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 資料無法儲存/讀取</p>
-            <p class="text-sm mt-1">請檢查 Firebase Console -> Firestore Database -> 「規則 (Rules)」。<br>確保規則允許讀寫 (例如設為 true)，否則重新整理後資料會消失。</p>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
-            <h2 class="text-lg font-semibold mb-3 text-gray-700">新增選項</h2>
-            <div class="flex flex-col md:flex-row gap-2">
-                <input type="date" id="new-date-input" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                <!-- 新增備註欄位，讓同一天可以有多個選項 -->
-                <input type="text" id="new-note-input" placeholder="備註 (例: 午餐、18:30)" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm min-w-[100px]">
-                    <i class="fa-solid fa-plus mr-1"></i> 新增
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">歡迎參加投票</h2>
+            <p class="text-gray-500 mb-6 text-sm">請輸入您的名稱以繼續</p>
+            
+            <div class="space-y-4">
+                <input type="text" id="login-name-input" placeholder="請輸入暱稱 (例: 炭治郎)" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-center text-lg placeholder-gray-400">
+                <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg">
+                    進入投票 <i class="fa-solid fa-arrow-right ml-2"></i>
                 </button>
             </div>
-            <p id="error-msg" class="text-red-500 text-sm mt-2 hidden"></p>
+            <p class="mt-4 text-xs text-gray-400">提示：特殊權限者請輸入專屬代號</p>
         </div>
+    </div>
 
-        <div class="bg-white rounded-xl shadow-md overflow-hidden">
-            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-lg font-semibold text-gray-700">投票排行榜</h2>
-                <span class="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">即時更新</span>
+    <!-- 2. 主應用程式 (預設隱藏) -->
+    <div id="app-container" class="hidden">
+        <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-calendar-check mr-2"></i>聚餐/活動日期投票</h1>
+                    <p class="text-blue-100 text-xs md:text-sm mt-1">
+                        <span id="header-greeting"></span> | 選出大家都有空的日期
+                    </p>
+                </div>
+                <div id="user-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
+                    連接中...
+                </div>
             </div>
+        </header>
+
+        <main class="max-w-3xl mx-auto px-4 py-6">
             
-            <div id="loading-spinner" class="flex justify-center items-center py-10">
-                <div class="loader"></div>
+            <!-- 設定錯誤警告 -->
+            <div id="config-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden" role="alert">
+                <p class="font-bold">設定尚未完成</p>
+                <p>若您是在 GitHub Pages 上執行，請打開 index.html 檔案，將您的 Firebase Config 填入程式碼中的設定區塊。</p>
             </div>
 
-            <div id="vote-list" class="divide-y divide-gray-100 min-h-[200px]"></div>
-            
-            <div id="empty-state" class="hidden flex-col items-center justify-center py-12 text-gray-400">
-                <i class="fa-regular fa-calendar-xmark text-4xl mb-3"></i>
-                <p>目前還沒有任何選項</p>
-                <p class="text-sm">請在上方新增日期開始投票</p>
+            <!-- 規則權限警告 -->
+            <div id="permission-warning" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 hidden" role="alert">
+                <p class="font-bold"><i class="fa-solid fa-triangle-exclamation"></i> 資料無法儲存/讀取</p>
+                <p class="text-sm mt-1">請檢查 Firebase Console -> Firestore Database -> 「規則 (Rules)」。<br>確保規則允許讀寫 (例如設為 true)。</p>
             </div>
-        </div>
 
-        <div class="mt-6 text-center text-gray-400 text-xs">
-            <p>您的 ID: <span id="mobile-user-id">...</span></p>
-        </div>
-    </main>
+            <!-- 新增選項區塊 (預設隱藏，只有管理員可見) -->
+            <div id="admin-add-section" class="bg-white rounded-xl shadow-md p-4 mb-6 hidden border-2 border-indigo-100">
+                <div class="flex items-center mb-3">
+                    <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded mr-2">管理員功能</span>
+                    <h2 class="text-lg font-semibold text-gray-700">新增選項</h2>
+                </div>
+                <div class="flex flex-col md:flex-row gap-2">
+                    <input type="date" id="new-date-input" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <input type="text" id="new-note-input" placeholder="備註 (例: 午餐、18:30)" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                    <button id="add-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm min-w-[100px]">
+                        <i class="fa-solid fa-plus mr-1"></i> 新增
+                    </button>
+                </div>
+                <p id="error-msg" class="text-red-500 text-sm mt-2 hidden"></p>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-700">投票排行榜</h2>
+                    <span class="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">即時更新</span>
+                </div>
+                
+                <div id="loading-spinner" class="flex justify-center items-center py-10">
+                    <div class="loader"></div>
+                </div>
+
+                <div id="vote-list" class="divide-y divide-gray-100 min-h-[200px]"></div>
+                
+                <div id="empty-state" class="hidden flex-col items-center justify-center py-12 text-gray-400">
+                    <i class="fa-regular fa-calendar-xmark text-4xl mb-3"></i>
+                    <p>目前還沒有任何選項</p>
+                    <p class="text-sm">等待管理員新增日期...</p>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center text-gray-400 text-xs">
+                <p>您的 ID: <span id="mobile-user-id">...</span></p>
+            </div>
+        </main>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // 引入 deleteDoc
+        import { getFirestore, collection, doc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
         //  設定區域 (Config Area)
         // ==========================================
         
-        // 1. 優先嘗試讀取預覽環境變數 (讓預覽功能正常運作)
         let firebaseConfig;
         let isPreviewEnv = false;
         
@@ -111,12 +143,8 @@
                 firebaseConfig = JSON.parse(__firebase_config);
                 isPreviewEnv = true;
             }
-        } catch (e) {
-            // 忽略錯誤，代表不是在預覽環境
-        }
+        } catch (e) {}
 
-        // 2. 如果不是預覽環境 (例如在 GitHub Pages)，則使用下方的設定
-        // ⚠️ 您提供的設定碼已填入如下：
         if (!firebaseConfig) {
             firebaseConfig = {
                 apiKey: "AIzaSyDQiHjNozV07Q8y6XtqGSAMcCnOEaGhPqM",
@@ -130,23 +158,69 @@
         }
 
         // ==========================================
-        //  變數宣告 (修正：移至上方避免初始化錯誤)
+        //  變數宣告
         // ==========================================
 
         let app, auth, db, currentUser;
-        
-        // 為了區隔不同使用者的測試資料，預覽環境使用特殊路徑
-        // 正式環境(GitHub)則使用根目錄的 'voting_dates' 集合
         const appId = (typeof __app_id !== 'undefined') ? __app_id : 'default';
 
+        // 狀態變數
+        let userName = '';
+        let isAdmin = false;
+
+        // DOM Elements
+        const welcomeModal = document.getElementById('welcome-modal');
+        const appContainer = document.getElementById('app-container');
+        const loginInput = document.getElementById('login-name-input');
+        const loginBtn = document.getElementById('login-btn');
+        const headerGreeting = document.getElementById('header-greeting');
+        const adminAddSection = document.getElementById('admin-add-section');
+
+        // ==========================================
+        //  登入畫面邏輯
         // ==========================================
 
-        // 檢查設定是否存在
+        loginBtn.addEventListener('click', enterApp);
+        loginInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') enterApp();
+        });
+
+        function enterApp() {
+            const inputVal = loginInput.value.trim();
+            if (!inputVal) {
+                alert("請輸入暱稱！");
+                return;
+            }
+
+            userName = inputVal;
+            
+            // 權限判斷：只有輸入 "柱" 才是管理員
+            if (userName === '柱') {
+                isAdmin = true;
+                adminAddSection.classList.remove('hidden'); // 顯示新增區塊
+            } else {
+                isAdmin = false;
+                adminAddSection.classList.add('hidden'); // 隱藏新增區塊
+            }
+
+            // 更新 UI
+            headerGreeting.textContent = `哈囉，${userName}`;
+            welcomeModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            // 如果已經有資料，重新渲染以套用權限 (顯示/隱藏垃圾桶)
+            // 這裡不需要特別呼叫，因為 subscribeToVotes 會持續監聽並在 update 時使用最新的 isAdmin 狀態
+            // 但如果資料已經載入，我們需要手動觸發一次 render (透過簡單的閉包變數狀態更新通常會在下一次 snapshot 觸發，或者我們可以強制重繪)
+            // 由於 initApp 已經在背景跑了，我們讓 snapshot callback 自然處理即可。
+        }
+
+        // ==========================================
+        //  Firebase 初始化
+        // ==========================================
+
         if (!firebaseConfig || !firebaseConfig.apiKey) {
             document.getElementById('config-warning').classList.remove('hidden');
             document.getElementById('loading-spinner').style.display = 'none';
-            // 不拋出 Error 讓頁面還能顯示警告
-            console.error("Firebase Config 尚未設定");
         } else {
             initApp();
         }
@@ -156,7 +230,6 @@
             auth = getAuth(app);
             db = getFirestore(app);
 
-            // 認證流程
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
@@ -165,7 +238,6 @@
                 }
             } catch (error) {
                 console.error("Login failed", error);
-                // 增加針對常見設定錯誤的提示
                 if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
                     showError("登入失敗：請至 Firebase Console -> Authentication 啟用「匿名登入」。");
                 } else {
@@ -185,8 +257,11 @@
             });
         }
 
+        // ==========================================
+        //  資料監聽與操作
+        // ==========================================
+
         function subscribeToVotes() {
-            // 根據環境決定集合路徑邏輯
             let colRef;
             if (isPreviewEnv) {
                  colRef = collection(db, 'artifacts', appId, 'public', 'data', 'voting_dates');
@@ -204,10 +279,7 @@
                 dates.sort((a, b) => {
                     const countA = a.voters ? a.voters.length : 0;
                     const countB = b.voters ? b.voters.length : 0;
-                    
-                    // 票數相同時，比較日期
                     if (countB !== countA) return countB - countA;
-                    
                     const dateA = new Date(a.date);
                     const dateB = new Date(b.date);
                     return dateA - dateB;
@@ -218,7 +290,6 @@
                 console.error("Snapshot Error:", error);
                 document.getElementById('loading-spinner').style.display = 'none';
                 if (error.code === 'permission-denied') {
-                    // 顯示醒目的權限警告
                     document.getElementById('permission-warning').classList.remove('hidden');
                 }
             });
@@ -252,18 +323,26 @@
                 const formattedDate = `${item.date} (${dayName})`;
                 const noteText = item.note ? `<span class="ml-2 text-sm text-blue-600 bg-blue-100 px-2 py-0.5 rounded">${item.note}</span>` : '';
 
+                // 管理員專屬：刪除按鈕
+                // 注意：這裡使用 onclick 傳遞 ID，我們將 deleteVote 設為 window 全域函數以便呼叫
+                const deleteBtn = isAdmin ? `
+                    <button onclick="window.deleteVote('${item.id}', event)" class="w-8 h-8 rounded-full bg-white border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400 flex items-center justify-center transition-all ml-2 shadow-sm z-20" title="刪除此選項">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                ` : '';
+
                 const li = document.createElement('div');
                 li.className = `vote-card p-4 relative overflow-hidden ${hasVoted ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 cursor-pointer border-l-4 ${hasVoted ? 'border-blue-500' : 'border-transparent'}`;
                 
                 li.innerHTML = `
                     <div class="absolute top-0 left-0 bottom-0 bg-blue-100 opacity-30 pointer-events-none transition-all duration-500" style="width: ${percentage}%; z-index:0;"></div>
                     <div class="relative z-10 flex justify-between items-center">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-4 flex-1">
                             <div class="flex flex-col items-center justify-center w-10 h-10 ${index < 3 && voteCount > 0 ? 'text-yellow-500' : 'text-gray-400'}">
                                 ${index === 0 && voteCount > 0 ? '<i class="fa-solid fa-trophy text-xl"></i>' : `<span class="text-lg font-bold text-gray-300">#${index + 1}</span>`}
                             </div>
                             <div>
-                                <div class="flex items-center">
+                                <div class="flex items-center flex-wrap">
                                     <h3 class="font-bold text-lg text-gray-800">${formattedDate}</h3>
                                     ${noteText}
                                 </div>
@@ -272,23 +351,47 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
                              <span class="text-2xl font-bold ${hasVoted ? 'text-blue-600' : 'text-gray-300'}">${voteCount}</span>
                              <button class="w-10 h-10 rounded-full flex items-center justify-center transition-all ${hasVoted ? 'bg-blue-500 text-white shadow-blue-300 shadow-md' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}">
                                 <i class="fa-solid fa-check"></i>
                              </button>
+                             ${deleteBtn}
                         </div>
                     </div>
                 `;
+                // 點擊卡片投票
                 li.onclick = () => handleVote(item.id, hasVoted);
                 voteListEl.appendChild(li);
             });
         }
 
+        // 將刪除功能掛載到 Window 以便 onclick 呼叫
+        window.deleteVote = async function(docId, event) {
+            // 阻止冒泡，避免觸發卡片的投票功能
+            event.stopPropagation();
+            
+            if (!confirm("確定要刪除這個選項嗎？此操作無法復原。")) {
+                return;
+            }
+
+            try {
+                let docRef;
+                if (isPreviewEnv) {
+                    docRef = doc(db, 'artifacts', appId, 'public', 'data', 'voting_dates', docId);
+                } else {
+                    docRef = doc(db, 'voting_dates', docId);
+                }
+                await deleteDoc(docRef);
+            } catch (error) {
+                console.error("Delete failed:", error);
+                showError("刪除失敗: " + error.message);
+            }
+        };
+
         async function handleVote(docId, hasVoted) {
             if (!currentUser) return showError("尚未連線");
             
-            // 根據環境取得正確的 doc reference
             let docRef;
             if (isPreviewEnv) {
                 docRef = doc(db, 'artifacts', appId, 'public', 'data', 'voting_dates', docId);
@@ -305,7 +408,7 @@
             } catch (error) {
                 console.error("Voting failed:", error);
                 if (error.code === 'permission-denied') {
-                     showError("投票失敗：權限不足 (Permission Denied)，請檢查 Firestore Rules。");
+                     showError("投票失敗：權限不足，請檢查規則。");
                 } else {
                      showError("投票失敗: " + error.message);
                 }
@@ -324,12 +427,11 @@
             if (!dateVal) return showError("請選擇日期");
             if (!currentUser) return showError("尚未連線");
             
-            // 設定為處理中狀態
+            const originalBtnHtml = addBtn.innerHTML;
             addBtn.disabled = true;
             addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
             try {
-                // 根據環境取得正確的 collection reference
                 let colRef;
                 if (isPreviewEnv) {
                     colRef = collection(db, 'artifacts', appId, 'public', 'data', 'voting_dates');
@@ -337,12 +439,10 @@
                     colRef = collection(db, 'voting_dates');
                 }
 
-                // 建立一個 5 秒超時的 Promise
                 const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("連線逾時，請檢查網路或權限設定")), 5000)
                 );
 
-                // 同時執行新增資料與超時檢查
                 await Promise.race([
                     addDoc(colRef, {
                         date: dateVal,
@@ -353,7 +453,6 @@
                     timeoutPromise
                 ]);
                 
-                // 成功後清空輸入
                 newDateInput.value = '';
                 newNoteInput.value = '';
             } catch (error) {
@@ -364,9 +463,8 @@
                      showError("新增失敗: " + error.message);
                 }
             } finally {
-                // 無論成功失敗，都強制恢復按鈕狀態
                 addBtn.disabled = false;
-                addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> 新增';
+                addBtn.innerHTML = originalBtnHtml;
             }
         });
 
