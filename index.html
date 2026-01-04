@@ -296,6 +296,10 @@
 
         // --- UI Logic ---
         function showLoginUI() {
+            // 清除監聽器，確保切換帳號時介面能正確更新
+            if (unsubEvents) { unsubEvents(); unsubEvents = null; }
+            if (unsubVotes) { unsubVotes(); unsubVotes = null; }
+            
             document.getElementById('welcome-modal').classList.remove('hidden');
             document.getElementById('app-container').classList.add('hidden');
             document.getElementById('login-step-1').classList.remove('hidden');
@@ -399,10 +403,25 @@
 
         window.delEvent = async (id, e) => {
             e.stopPropagation();
-            if (!isAdmin || !confirm('刪除此活動？')) return;
+            if (!isAdmin || !confirm('確定要刪除整個活動嗎？\n這將會一併刪除該活動內的所有投票資料！\n此操作無法復原。')) return;
+            
             try {
-                const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
-                await deleteDoc(doc(db, collectionName, id));
+                const eventsCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
+                const votesCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
+                
+                // 1. 刪除活動本身
+                await deleteDoc(doc(db, eventsCol, id));
+                
+                // 2. 批次刪除關聯的投票選項
+                const q = query(collection(db, votesCol), where('eventId', '==', id));
+                const snapshot = await getDocs(q);
+                
+                const batch = writeBatch(db);
+                snapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+                
             } catch (e) { handleError(e); }
         };
 
