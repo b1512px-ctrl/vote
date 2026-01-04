@@ -89,7 +89,7 @@
 
             <!-- 活動列表 -->
             <div class="mb-4 flex justify-between items-end">
-                <h2 class="text-xl font-bold text-gray-800">進行中的活動</h2>
+                <h2 class="text-xl font-bold text-gray-800">進行中的活動 (最新20筆)</h2>
                 <span class="text-sm text-gray-500">點擊卡片進入投票</span>
             </div>
 
@@ -185,7 +185,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // 引入 limit, query, where, getDocs, writeBatch 用於優化和批次刪除
+        import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where, limit, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
         //  設定區域
@@ -314,7 +315,6 @@
             votingView.classList.add('hidden');
             eventDashboard.classList.remove('hidden');
             
-            // 取消投票監聽，開啟活動監聽
             if (unsubscribeVotes) {
                 unsubscribeVotes();
                 unsubscribeVotes = null;
@@ -331,8 +331,6 @@
             eventDashboard.classList.add('hidden');
             votingView.classList.remove('hidden');
             
-            // 取消活動監聽(可選)，開啟投票監聽
-            // 這裡我們保留活動監聽，方便返回時不需要重新讀取
             subscribeToVotes(evtId);
         }
 
@@ -361,7 +359,6 @@
                 }
             } catch (error) {
                 console.error("Login error:", error);
-                // 忽略錯誤顯示，依賴後續操作檢查
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -370,7 +367,6 @@
                     document.getElementById('dashboard-status').textContent = `ID: ${user.uid.substring(0,4)}`;
                     document.getElementById('voting-status').textContent = `ID: ${user.uid.substring(0,4)}`;
                     
-                    // 如果已經在 dashboard 頁面，開始監聽
                     if (!eventDashboard.classList.contains('hidden')) {
                         subscribeToEvents();
                     }
@@ -383,10 +379,11 @@
         // ==========================================
 
         function subscribeToEvents() {
-            if (unsubscribeEvents) return; // 避免重複監聽
+            if (unsubscribeEvents) return; 
 
             const colPath = getCollectionPath(EVENTS_COL);
-            const q = query(collection(db, ...colPath), orderBy('createdAt', 'desc'));
+            // 優化：只載入最新的 20 筆活動，避免資料量過大
+            const q = query(collection(db, ...colPath), orderBy('createdAt', 'desc'), limit(20));
 
             unsubscribeEvents = onSnapshot(q, (snapshot) => {
                 eventsLoader.style.display = 'none';
@@ -415,16 +412,24 @@
             events.forEach(evt => {
                 const dateStr = evt.createdAt ? new Date(evt.createdAt.toDate()).toLocaleDateString() : '剛剛';
                 
+                // 管理員專屬：刪除活動按鈕
+                const deleteEventBtn = isAdmin ? `
+                    <button onclick="window.deleteEvent('${evt.id}', event)" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-white text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all z-20 shadow-sm opacity-0 group-hover:opacity-100" title="刪除整個活動">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                ` : '';
+
                 const card = document.createElement('div');
-                card.className = "event-card bg-white p-5 rounded-xl shadow border border-gray-100 cursor-pointer flex justify-between items-center group";
+                card.className = "event-card bg-white p-5 rounded-xl shadow border border-gray-100 cursor-pointer flex justify-between items-center group relative";
                 card.innerHTML = `
-                    <div>
+                    <div class="pr-8">
                         <h3 class="font-bold text-lg text-gray-800 group-hover:text-indigo-600 transition-colors">${evt.title}</h3>
                         <p class="text-xs text-gray-500 mt-1"><i class="fa-regular fa-clock mr-1"></i>建立於 ${dateStr} <span class="mx-1">|</span> 發起人: ${evt.creator || '匿名'}</p>
                     </div>
                     <div class="text-gray-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all">
                         <i class="fa-solid fa-chevron-right text-xl"></i>
                     </div>
+                    ${deleteEventBtn}
                 `;
                 card.onclick = () => showVoting(evt.id, evt.title);
                 eventsList.appendChild(card);
@@ -457,6 +462,36 @@
             }
         });
 
+        // 刪除活動功能 (含清理關聯投票)
+        window.deleteEvent = async function(evtId, event) {
+            event.stopPropagation();
+            if (!confirm("確定要刪除整個活動嗎？\n這將會一併刪除該活動內的所有投票資料！\n此操作無法復原。")) return;
+
+            try {
+                // 1. 刪除該活動文件
+                const eventDocPath = getCollectionPath(EVENTS_COL);
+                await deleteDoc(doc(db, ...eventDocPath, evtId));
+
+                // 2. 清理關聯的投票資料 (為了資料庫整潔)
+                // 由於這是純前端，我們查詢並批次刪除
+                const votesPath = getCollectionPath(VOTES_COL);
+                const q = query(collection(db, ...votesPath), where('eventId', '==', evtId));
+                const querySnapshot = await getDocs(q);
+                
+                // Firestore 批次寫入限制 500 筆，這裡做個簡單處理
+                const batch = writeBatch(db);
+                querySnapshot.forEach((doc) => {
+                    batch.delete(doc.ref);
+                });
+                await batch.commit();
+
+                // 畫面會自動透過 onSnapshot 更新
+            } catch (error) {
+                console.error("Delete event failed:", error);
+                alert("刪除失敗: " + error.message);
+            }
+        }
+
         // ==========================================
         //  [Voting] 投票管理邏輯
         // ==========================================
@@ -468,35 +503,21 @@
             votingLoader.style.display = 'flex';
             voteListEl.innerHTML = '';
 
-            // 使用簡單的 fetch + client side filter 避免 index 問題
-            // 在大規模應用應該用 query(where('eventId', '==', evtId))
-            // 這裡嘗試直接用 client filter 以防測試環境 index 報錯
-            // 為了效能，我們先試試看 where，如果報錯(index needed)，使用者需要去建 index
-            // 但因為是測試環境，我們先抓全部再過濾 (僅適用於小量資料)
-            // 修正：為了正確性，還是應該使用 Collection Group 或簡單的集合結構
-            // 這裡採用: 所有 votes 都在同一個集合，但我們會嘗試只監聽該 eventId 的資料
-            
             const colPath = getCollectionPath(VOTES_COL);
-            // 為了不讓使用者去建 index，我們這裡不使用 orderBy 混合 where
-            // 只做一個簡單的 filtering
-            // 注意：Canvas 環境沒有 console 可以建 index，所以盡量不要用複合查詢
             
-            // 策略：監聽所有 votes (若資料量不大)，或使用單一 where
-            // 讓我們試試單一 where
-            const q = query(collection(db, ...colPath));
+            // 優化：伺服器端過濾 (Server-side Filtering)
+            // 只下載 eventId 相同的資料，大幅減少流量與讀取次數
+            const q = query(collection(db, ...colPath), where('eventId', '==', evtId));
 
             unsubscribeVotes = onSnapshot(q, (snapshot) => {
                 votingLoader.style.display = 'none';
                 const allVotes = [];
                 snapshot.forEach(doc => {
-                    const data = doc.data();
-                    // 前端過濾 (Client-side filtering)
-                    if (data.eventId === evtId) {
-                        allVotes.push({ id: doc.id, ...data });
-                    }
+                    allVotes.push({ id: doc.id, ...doc.data() });
                 });
 
-                // 排序：票數高 -> 低, 日期 早 -> 晚
+                // 前端排序：因為 Firestore 若要同時 where + orderBy 需要建立複合索引
+                // 為了讓使用者設定簡單，我們維持只用 where，排序在前端做
                 allVotes.sort((a, b) => {
                     const countA = a.voters ? a.voters.length : 0;
                     const countB = b.voters ? b.voters.length : 0;
