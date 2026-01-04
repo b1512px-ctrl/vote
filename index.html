@@ -157,7 +157,12 @@
                 }
             } catch (error) {
                 console.error("Login failed", error);
-                showError("登入失敗: " + error.message);
+                // 增加針對常見設定錯誤的提示
+                if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
+                    showError("登入失敗：請至 Firebase Console -> Authentication 啟用「匿名登入」。");
+                } else {
+                    showError("登入失敗: " + error.message);
+                }
             }
 
             onAuthStateChanged(auth, (user) => {
