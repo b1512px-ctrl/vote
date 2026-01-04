@@ -62,7 +62,7 @@
                 <input type="date" id="new-date-input" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
                 <!-- 新增備註欄位，讓同一天可以有多個選項 -->
                 <input type="text" id="new-note-input" placeholder="備註 (例: 午餐、18:30)" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm">
+                <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center shadow-sm min-w-[100px]">
                     <i class="fa-solid fa-plus mr-1"></i> 新增
                 </button>
             </div>
@@ -324,7 +324,13 @@
             if (!dateVal) return showError("請選擇日期");
             if (!currentUser) return showError("尚未連線");
 
+            // 保存原始按鈕文字
+            const originalBtnHtml = addBtn.innerHTML;
+            
+            // 設定為處理中狀態
             addBtn.disabled = true;
+            addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
             try {
                 // 根據環境取得正確的 collection reference
                 let colRef;
@@ -352,7 +358,9 @@
                      showError("新增失敗: " + error.message);
                 }
             } finally {
+                // 無論成功失敗，都恢復按鈕狀態
                 addBtn.disabled = false;
+                addBtn.innerHTML = originalBtnHtml;
             }
         });
 
