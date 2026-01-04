@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多人日期投票 (即時同步)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Font Awesome 用於圖示 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* 自定義滾動條 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+        
+        /* 載入動畫 */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .vote-card {
+            transition: all 0.3s ease;
+        }
+        .vote-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
+
+    <!-- 頂部標題區 -->
+    <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-3xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold"><i class="fa-solid fa-calendar-check mr-2"></i>聚餐/活動日期投票</h1>
+                <p class="text-blue-100 text-xs md:text-sm mt-1">選出大家都有空的日期 (可複選)</p>
+            </div>
+            <div id="user-status" class="text-xs bg-blue-700 px-3 py-1 rounded-full hidden md:block">
+                連接中...
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 py-6">
+        
+        <!-- 新增日期區塊 -->
+        <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+            <h2 class="text-lg font-semibold mb-3 text-gray-700">新增選項</h2>
+            <div class="flex gap-2">
+                <input type="date" id="new-date-input" class="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
+                <button id="add-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm">
+                    <i class="fa-solid fa-plus mr-1"></i> 新增
+                </button>
+            </div>
+            <p id="error-msg" class="text-red-500 text-sm mt-2 hidden"></p>
+        </div>
+
+        <!-- 統計與列表區塊 -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-700">投票排行榜</h2>
+                <span class="text-sm text-gray-500 bg-gray-200 px-2 py-1 rounded">即時更新</span>
+            </div>
+            
+            <div id="loading-spinner" class="flex justify-center items-center py-10">
+                <div class="loader"></div>
+            </div>
+
+            <div id="vote-list" class="divide-y divide-gray-100 min-h-[200px]">
+                <!-- 投票項目將由 JS 動態生成 -->
+            </div>
+            
+            <div id="empty-state" class="hidden flex-col items-center justify-center py-12 text-gray-400">
+                <i class="fa-regular fa-calendar-xmark text-4xl mb-3"></i>
+                <p>目前還沒有任何日期選項</p>
+                <p class="text-sm">請在上網新增一個日期開始投票</p>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center text-gray-400 text-xs">
+            <p>您的 ID: <span id="mobile-user-id">...</span></p>
+        </div>
+    </main>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // 新增 signInWithCustomToken 引用
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, increment, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase 設定與初始化 ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        // 使用 typeof 檢查避免 ReferenceError
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app';
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // 資料路徑：artifacts/{appId}/public/data/event_dates
+        const DATA_COLLECTION_PATH = 'event_dates';
+        
+        // 狀態變數
+        let currentUser = null;
+        let unsubscribeSnapshot = null;
+
+        // DOM 元素
+        const voteListEl = document.getElementById('vote-list');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const emptyState = document.getElementById('empty-state');
+        const newDateInput = document.getElementById('new-date-input');
+        const addBtn = document.getElementById('add-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const userStatusEl = document.getElementById('user-status');
+        const mobileUserIdEl = document.getElementById('mobile-user-id');
+
+        // --- 1. 認證處理 ---
+        async function initApp() {
+            try {
+                // 優先檢查並使用環境提供的 Custom Token
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    console.log("Using custom token for auth...");
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    console.log("Using anonymous auth...");
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                showError("登入失敗，請重新整理頁面: " + error.message);
+            }
+        }
+
+        // 監聽認證狀態
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("User authenticated:", user.uid);
+                currentUser = user;
+                const shortId = user.uid.substring(0, 6);
+                userStatusEl.textContent = `User: ${shortId}...`;
+                mobileUserIdEl.textContent = user.uid;
+                
+                // 登入成功後開始監聽資料
+                subscribeToVotes();
+            } else {
+                console.log("User disconnected");
+                userStatusEl.textContent = "未連線";
+                // 用戶登出時，取消監聽
+                if (unsubscribeSnapshot) {
+                    unsubscribeSnapshot();
+                    unsubscribeSnapshot = null;
+                }
+            }
+        });
+
+        // --- 2. 資料監聽 (Read) ---
+        function subscribeToVotes() {
+            if (!currentUser) return;
+
+            // 確保路徑完全符合規範：artifacts/{appId}/public/data/{collectionName}
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', DATA_COLLECTION_PATH);
+
+            // 實時監聽
+            unsubscribeSnapshot = onSnapshot(colRef, (snapshot) => {
+                loadingSpinner.style.display = 'none';
+                
+                const dates = [];
+                snapshot.forEach(doc => {
+                    dates.push({ id: doc.id, ...doc.data() });
+                });
+
+                // 排序邏輯：票數多到少 > 日期早到晚
+                dates.sort((a, b) => {
+                    const countA = a.voters ? a.voters.length : 0;
+                    const countB = b.voters ? b.voters.length : 0;
+                    
+                    if (countB !== countA) {
+                        return countB - countA; // 票數降序
+                    }
+                    return new Date(a.date) - new Date(b.date); // 日期升序
+                });
+
+                renderVotes(dates);
+            }, (error) => {
+                console.error("Snapshot Error Detailed:", error);
+                // 檢查是否是權限錯誤
+                if (error.code === 'permission-denied') {
+                     showError("權限錯誤：無法讀取資料。請確認應用程式 ID 設定正確。");
+                } else {
+                     showError("無法載入資料：" + error.message);
+                }
+                loadingSpinner.style.display = 'none';
+            });
+        }
+
+        // --- 3. 渲染畫面 ---
+        function renderVotes(dates) {
+            voteListEl.innerHTML = '';
+
+            if (dates.length === 0) {
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+
+            // 找出最高票數來計算進度條比例
+            const maxVotes = dates.length > 0 ? Math.max(...dates.map(d => d.voters ? d.voters.length : 0)) : 0;
+
+            dates.forEach((item, index) => {
+                const voters = item.voters || [];
+                const voteCount = voters.length;
+                const hasVoted = voters.includes(currentUser.uid);
+                
+                // 計算進度條寬度 (避免除以0)
+                const percentage = maxVotes > 0 ? (voteCount / maxVotes) * 100 : 0;
+
+                // 格式化日期顯示 (例如: 2023-10-27 星期五)
+                const dateObj = new Date(item.date);
+                const dayNames = ["週日", "週一", "週二", "週三", "週四", "週五", "週六"];
+                const dayName = dayNames[dateObj.getDay()];
+                const formattedDate = `${item.date} (${dayName})`;
+
+                const li = document.createElement('div');
+                li.className = `vote-card p-4 relative overflow-hidden ${hasVoted ? 'bg-blue-50' : 'bg-white'} hover:bg-gray-50 cursor-pointer border-l-4 ${hasVoted ? 'border-blue-500' : 'border-transparent'}`;
+                
+                // 背景進度條
+                const progressBg = document.createElement('div');
+                progressBg.className = 'absolute top-0 left-0 bottom-0 bg-blue-100 opacity-30 pointer-events-none transition-all duration-500';
+                progressBg.style.width = `${percentage}%`;
+                progressBg.style.zIndex = '0';
+                
+                // 內容容器
+                const content = document.createElement('div');
+                content.className = 'relative z-10 flex justify-between items-center';
+                
+                content.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col items-center justify-center w-10 h-10 ${index < 3 && voteCount > 0 ? 'text-yellow-500' : 'text-gray-400'}">
+                            ${index === 0 && voteCount > 0 ? '<i class="fa-solid fa-trophy text-xl"></i>' : `<span class="text-lg font-bold text-gray-300">#${index + 1}</span>`}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-gray-800">${formattedDate}</h3>
+                            <div class="flex items-center text-xs text-gray-500 mt-1">
+                                <div class="flex -space-x-1 overflow-hidden mr-2">
+                                    ${voters.length > 0 
+                                        ? voters.slice(0, 3).map(() => `<div class="inline-block h-4 w-4 rounded-full bg-blue-300 ring-2 ring-white"></div>`).join('') 
+                                        : ''}
+                                    ${voters.length > 3 ? `<div class="inline-block h-4 w-4 rounded-full bg-gray-200 ring-2 ring-white flex items-center justify-center text-[8px]">+${voters.length-3}</div>` : ''}
+                                </div>
+                                <span>${voteCount} 人參加</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                         <span class="text-2xl font-bold ${hasVoted ? 'text-blue-600' : 'text-gray-300'}">${voteCount}</span>
+                         <button class="w-10 h-10 rounded-full flex items-center justify-center transition-all ${hasVoted ? 'bg-blue-500 text-white shadow-blue-300 shadow-md' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}">
+                            <i class="fa-solid fa-check"></i>
+                         </button>
+                    </div>
+                `;
+
+                li.appendChild(progressBg);
+                li.appendChild(content);
+
+                // 點擊事件：投票或取消
+                li.onclick = () => handleVote(item.id, hasVoted);
+
+                voteListEl.appendChild(li);
+            });
+        }
+
+        // --- 4. 操作邏輯 (Write) ---
+
+        // 處理投票
+        async function handleVote(docId, hasVoted) {
+            if (!currentUser) return;
+
+            const docRef = doc(db, 'artifacts', appId, 'public', 'data', DATA_COLLECTION_PATH, docId);
+
+            try {
+                if (hasVoted) {
+                    // 取消投票
+                    await updateDoc(docRef, {
+                        voters: arrayRemove(currentUser.uid)
+                    });
+                } else {
+                    // 進行投票
+                    await updateDoc(docRef, {
+                        voters: arrayUnion(currentUser.uid)
+                    });
+                }
+            } catch (error) {
+                console.error("Voting failed:", error);
+                showError("投票失敗：" + error.message);
+            }
+        }
+
+        // 處理新增日期
+        addBtn.addEventListener('click', async () => {
+            const dateVal = newDateInput.value;
+            if (!dateVal) {
+                showError("請選擇一個日期");
+                return;
+            }
+            if (!currentUser) {
+                showError("尚未連線，請稍後");
+                return;
+            }
+
+            hideError();
+            addBtn.disabled = true;
+            addBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+            try {
+                // 使用日期字串作為 ID，避免重複添加同一天
+                const docId = dateVal; 
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', DATA_COLLECTION_PATH, docId);
+
+                // 檢查是否已存在 (雖然 setDoc merge:true 不會覆蓋，但我們想知道是否是新的)
+                // 這裡直接使用 setDoc merge: true，如果存在就保留，不存在就創建
+                await setDoc(docRef, {
+                    date: dateVal,
+                    // 如果這是一筆新資料，初始化 voters 為空陣列
+                    // 為了不覆蓋現有投票，我們不在此處設定 voters，除非是新建
+                    createdAt: serverTimestamp() 
+                }, { merge: true });
+                
+                // 確保 voters 欄位存在 (針對完全新建的情況)
+                // 這裡做一個小技巧：對該文檔做一次 update，如果 voters 不存在則設為空
+                // 但為了簡單，我們假設讀取時 undefined 就是 0 票
+                
+                newDateInput.value = ''; // 清空輸入
+            } catch (error) {
+                console.error("Add date failed:", error);
+                showError("新增失敗：" + error.message);
+            } finally {
+                addBtn.disabled = false;
+                addBtn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i> 新增';
+            }
+        });
+
+        // 錯誤訊息顯示
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.classList.remove('hidden');
+            setTimeout(() => {
+                errorMsg.classList.add('hidden');
+            }, 3000);
+        }
+        function hideError() {
+            errorMsg.classList.add('hidden');
+        }
+
+        // 啟動應用
+        initApp();
+
+    </script>
+</body>
+</html>
