@@ -162,17 +162,15 @@
         if (!firebaseConfig) {
             firebaseConfig = {
                 // ⚠️ 請替換成您的設定 ⚠️
-               apiKey: "AIzaSyDQiHjNozV07Q8y6XtqGSAMcCnOEaGhPqM",
-  authDomain: "vote-7e8d0.firebaseapp.com",
-  projectId: "vote-7e8d0",
-  storageBucket: "vote-7e8d0.firebasestorage.app",
-  messagingSenderId: "218847236466",
-  appId: "1:218847236466:web:d1904b9ec032ac35a7cdeb",
-  measurementId: "G-HKJ9QSFB5L"
+                apiKey: "AIzaSyDQiHjNozV07Q8y6XtqGSAMcCnOEaGhPqM",
+  				authDomain: "vote-7e8d0.firebaseapp.com",
+  				projectId: "vote-7e8d0",
+  				storageBucket: "vote-7e8d0.firebasestorage.app",
+  				messagingSenderId: "218847236466",
+  				appId: "1:218847236466:web:d1904b9ec032ac35a7cdeb",
+  				measurementId: "G-HKJ9QSFB5L"
             };
         }
-
-        
 
         // --- Init ---
         const app = initializeApp(firebaseConfig);
@@ -181,9 +179,7 @@
 
         // --- State ---
         // 管理員名單 (請確保這裡的名字與您輸入的一致，不分大小寫)
-        const ADMIN_LIST = ['ELLY LIN', 'Ling', 'Luna', '柱'];
-        // 預設密碼
-        const DEFAULT_PWD = 'superman';
+        const ADMIN_LIST = ['ELLY LIN', 'Ling', 'Luna'];
         
         let currentUser = null;
         let isAdmin = false;
@@ -244,10 +240,8 @@
             const pwd = loginPwdInput.value;
             const name = loginNameInput.dataset.adminName; // 使用上面儲存的名稱
             
-            if (pwd !== DEFAULT_PWD) {
-                loginMsg.textContent = '密碼錯誤';
-                return;
-            }
+            // 移除前端密碼檢查，直接將密碼送往 Firebase 驗證
+            // 這樣即便按 F12 也看不到密碼
             performAdminLogin(name, pwd);
         };
 
@@ -270,15 +264,21 @@
             const email = name.toLowerCase().replace(/\s+/g, '_') + '@admin.com';
             
             try {
-                // 嘗試登入
+                // 嘗試登入 (密碼驗證發生在 Firebase 伺服器端)
                 await signInWithEmailAndPassword(auth, email, pwd);
             } catch (error) {
-                // 如果帳號不存在 (第一次使用)，則自動註冊
+                // 如果帳號不存在 (第一次使用)，則自動註冊 (此時設定密碼)
+                // 注意：這代表第一次輸入的密碼將成為該帳號的密碼
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
                     try {
                         await createUserWithEmailAndPassword(auth, email, pwd);
                     } catch (regError) {
-                        loginMsg.textContent = '自動註冊失敗: ' + regError.message;
+                        // 如果註冊失敗(通常是 email 已存在但密碼錯誤)，則顯示密碼錯誤
+                        if (regError.code === 'auth/email-already-in-use') {
+                             loginMsg.textContent = '登入失敗: 密碼錯誤';
+                        } else {
+                             loginMsg.textContent = '註冊失敗: ' + regError.message;
+                        }
                     }
                 } else {
                     loginMsg.textContent = '登入失敗: ' + error.message;
@@ -521,5 +521,3 @@
     </script>
 </body>
 </html>
-
-
