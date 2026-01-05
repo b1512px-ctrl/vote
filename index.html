@@ -155,26 +155,16 @@
             <div id="voting-view" class="hidden">
                 <h2 id="current-event-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
 
-                <!-- 新增選項 (管理員) -->
-                <div id="admin-create-vote" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-yellow-200 hidden">
-                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold">
-                        <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
-                    </div>
-                    <div class="flex flex-col md:flex-row gap-2">
-                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
-                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
-                        <button id="add-vote-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold">新增</button>
-                    </div>
-                </div>
-
-                <!-- 新增選項 (成員) -->
+                <!-- 新增選項 (管理員 + 成員 可見) -->
+                <!-- 修正：移除重複的 ID 區塊，統一使用這一個區塊，並透過 JS 動態調整樣式 -->
+                <!-- 樣式修正：bg-white 解決灰色問題, w-full 解決滿版問題, 移除 appearance-none 恢復日曆圖示 -->
                 <div id="create-vote-section" class="bg-white rounded-xl shadow-md p-4 mb-6 border hidden">
-                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold">
+                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold" id="cv-header-text">
                         <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
                     </div>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
-                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
+                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white w-full">
+                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 w-full">
                         <button id="add-vote-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors">新增</button>
                     </div>
                 </div>
@@ -194,9 +184,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // 引入完整的 Auth 功能
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // 新增 getDoc, setDoc 用於讀取全域設定
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where, limit, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================
@@ -225,12 +213,12 @@
 
         // --- State ---
         const ADMIN_LIST = ['ELLY LIN', 'Ling', 'Luna', '柱'];
-        const SUPER_ADMIN = '柱'; // 擁有控制註冊權限的超級管理員
+        const SUPER_ADMIN = '柱';
         
         let currentUser = null;
         let isAdmin = false;
         let isMember = false;
-        let selectedRole = null; // 'admin', 'member', 'guest'
+        let selectedRole = null; 
         
         let currentEventId = null;
         let unsubEvents = null;
@@ -244,12 +232,11 @@
         const loginPwdInput = document.getElementById('login-pwd-input');
         const loginMsg = document.getElementById('login-msg');
         
-        // Settings DOM
         const superAdminSettings = document.getElementById('super-admin-settings');
         const regToggle = document.getElementById('reg-toggle');
         const regStatusText = document.getElementById('reg-status-text');
 
-        // 1. 初始化檢查 (檢查是否已登入)
+        // 1. 初始化檢查
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 currentUser = user;
@@ -261,13 +248,12 @@
         });
 
         function checkUserPermissions(user) {
-            // 權限判斷邏輯 (依賴 Email domain)
             const email = user.email || '';
             isAdmin = email.endsWith('@admin.com');
             isMember = email.endsWith('@member.com');
         }
 
-        // --- 登入 UI 流程 ---
+        // --- 登入 UI ---
         
         window.selectRole = (role) => {
             selectedRole = role;
@@ -280,12 +266,10 @@
             
             if (role === 'admin') {
                 roleBadge.textContent = '管理員登入';
-                // 藍色系
                 roleBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-blue-100 text-blue-800';
                 loginPwdInput.classList.remove('hidden');
             } else if (role === 'member') {
                 roleBadge.textContent = '成員登入';
-                // 黑色系 (灰底黑字)
                 roleBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-gray-200 text-gray-900';
                 loginPwdInput.classList.remove('hidden');
             } else {
@@ -301,8 +285,6 @@
             selectedRole = null;
         };
 
-        // --- 執行登入 ---
-        
         document.getElementById('login-submit-btn').onclick = () => {
             const name = loginNameInput.value.trim();
             if (!name) return;
@@ -348,9 +330,7 @@
                 await signInWithEmailAndPassword(auth, email, pwd);
                 sessionStorage.setItem('display_name', name); 
             } catch (error) {
-                // 如果帳號不存在 (自動註冊邏輯)
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-                    // 如果是成員登入，先檢查是否開放註冊
                     if (domain === 'member.com') {
                         try {
                             const isOpen = await checkRegistrationOpen();
@@ -359,7 +339,7 @@
                                 return;
                             }
                         } catch (checkErr) {
-                            console.error(checkErr); // 若讀取失敗默認允許或報錯，這裡保守繼續嘗試
+                            console.error(checkErr);
                         }
                     }
 
@@ -386,11 +366,8 @@
             }
         };
 
-        // --- 全域設定讀取 (Settings) ---
-        
+        // --- Settings Logic ---
         function getSettingsDocRef() {
-            // 修正路徑：將設定檔改存於 events/system_settings，沿用現有 Security Rules 權限
-            // 這樣不需要額外開啟 settings 集合的讀寫權限
             const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
             if (typeof __app_id !== 'undefined') {
                 return doc(db, 'artifacts', appIdStr, 'public', 'data', 'events', 'system_settings');
@@ -406,7 +383,7 @@
                     const data = docSnap.data();
                     return data.memberRegistrationOpen !== false; 
                 }
-                return true; // 預設開放
+                return true; 
             } catch (e) {
                 console.error("Check setting failed:", e);
                 return true; 
@@ -441,33 +418,35 @@
             
             document.getElementById('user-display').textContent = `${roleText}: ${displayName}`;
             
-            // 權限UI調整
             const header = document.getElementById('main-header');
             const createEventSection = document.getElementById('create-event-section');
             const createVoteSection = document.getElementById('create-vote-section');
-            const adminCreateVote = document.getElementById('admin-create-vote');
             const guestHint = document.getElementById('guest-hint');
             const createEventBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
+            const cvHeaderText = document.getElementById('cv-header-text');
 
             if (isAdmin) {
                 // 管理員：藍色系
                 header.classList.remove('bg-gray-800', 'bg-yellow-700');
                 header.classList.add('bg-blue-700');
                 
-                // 按鈕色系
                 createEventBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 
+                // 動態設定新增選項區塊的樣式
                 createEventSection.classList.remove('hidden');
-                adminCreateVote.classList.remove('hidden');
-                createVoteSection.classList.add('hidden'); // 管理員用專屬的
+                createVoteSection.classList.remove('hidden');
+                
                 createEventSection.classList.remove('border-gray-800');
                 createEventSection.classList.add('border-blue-500');
                 
+                createVoteSection.classList.remove('border-gray-800');
+                createVoteSection.classList.add('border-blue-200');
+                if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
+                
                 guestHint.classList.add('hidden');
 
-                // 超級管理員 (柱) 顯示設定開關
                 if (displayName === SUPER_ADMIN) {
                     superAdminSettings.classList.remove('hidden');
                     initSettingsToggle();
@@ -480,15 +459,18 @@
                 header.classList.remove('bg-blue-700', 'bg-yellow-700');
                 header.classList.add('bg-gray-900');
                 
-                // 按鈕色系
                 createEventBtn.className = "bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
 
                 createEventSection.classList.remove('hidden');
-                adminCreateVote.classList.add('hidden');
                 createVoteSection.classList.remove('hidden');
+                
                 createEventSection.classList.remove('border-blue-500');
-                createEventSection.classList.add('border-gray-800'); // 黑色邊框提示
+                createEventSection.classList.add('border-gray-800'); 
+                
+                createVoteSection.classList.remove('border-blue-200');
+                createVoteSection.classList.add('border-gray-800');
+                if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
                 
                 guestHint.classList.add('hidden');
                 superAdminSettings.classList.add('hidden');
@@ -499,7 +481,6 @@
                 header.classList.add('bg-gray-600');
                 
                 createEventSection.classList.add('hidden');
-                adminCreateVote.classList.add('hidden');
                 createVoteSection.classList.add('hidden');
                 guestHint.classList.remove('hidden');
                 superAdminSettings.classList.add('hidden');
@@ -508,7 +489,6 @@
             loadDashboard();
         }
 
-        // --- Settings Logic (For Pillar) ---
         async function initSettingsToggle() {
             regStatusText.textContent = "讀取中...";
             try {
@@ -521,7 +501,6 @@
                 regToggle.checked = isOpen;
                 updateStatusText(isOpen);
                 
-                // 綁定事件
                 regToggle.onchange = async () => {
                     const newState = regToggle.checked;
                     updateStatusText(newState);
@@ -562,12 +541,10 @@
                 } else {
                     document.getElementById('no-events-msg').classList.add('hidden');
                     snapshot.forEach(doc => {
-                        // 隱藏系統設定檔
                         if (doc.id === 'system_settings') return;
 
                         const data = doc.data();
                         const date = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : '剛剛';
-                        
                         const deleteBtn = isAdmin ? `<button onclick="window.delEvent('${doc.id}', event)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 z-10 p-2"><i class="fa-solid fa-trash"></i></button>` : '';
                         
                         const div = document.createElement('div');
@@ -606,12 +583,11 @@
         window.delEvent = async (id, e) => {
             e.stopPropagation();
             if (!isAdmin) return alert("僅管理員可刪除");
-            if (!confirm('確定要刪除整個活動嗎？\n這將會一併刪除該活動內的所有投票資料！')) return;
+            if (!confirm('確定要刪除整個活動嗎？')) return;
             
             try {
                 const eventsCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
                 const votesCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-                
                 await deleteDoc(doc(db, eventsCol, id));
                 const q = query(collection(db, votesCol), where('eventId', '==', id));
                 const snapshot = await getDocs(q);
@@ -658,7 +634,6 @@
                         
                         const borderClass = hasVoted ? 'border-l-4 border-blue-500 bg-blue-50' : 'bg-white';
                         const checkIcon = hasVoted ? '<i class="fa-solid fa-check-circle text-2xl text-blue-600"></i>' : '';
-                        
                         const deleteBtn = isAdmin ? `<button onclick="window.delVote('${v.id}', event)" class="ml-2 text-red-300 hover:text-red-500 p-2 z-10"><i class="fa-solid fa-trash"></i></button>` : '';
                         
                         const canVote = isAdmin || isMember;
@@ -686,17 +661,6 @@
                 }
             }, handleError);
         }
-
-        // Attach listeners dynamically because elements might be hidden
-        // Wait, for this simple case, we need to handle dual inputs or just use one.
-        // We have two "add vote" sections: admin-create-vote and create-vote-section.
-        // But getElementById only returns one.
-        // I'll make the member section use the same IDs for now and hide the admin one or vice versa.
-        // Actually, since I duplicated the ID in HTML, I must fix the listener to use the visible one.
-        
-        // BETTER FIX: Use the 'create-vote-section' for both roles (just style it differently)
-        // I will remove the separate 'admin-create-vote' block logic in JS and rely on classes.
-        // See showAppUI logic adjustments.
 
         document.getElementById('add-vote-btn').onclick = async function() {
             if (!isAdmin && !isMember) return alert("權限不足");
