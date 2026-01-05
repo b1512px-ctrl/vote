@@ -105,8 +105,8 @@
                 <p>請填入 Firebase Config。</p>
             </div>
             <div id="permission-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
-                <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足或規則錯誤</p>
-                <p class="text-sm">操作被拒絕。請確認您的權限，或檢查 Firestore Rules。</p>
+                <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足</p>
+                <p id="permission-msg" class="text-sm">操作被拒絕。請確認 Firebase Firestore Rules 是否已允許成員 (Member) 權限。</p>
             </div>
 
             <!-- VIEW: Dashboard -->
@@ -162,7 +162,7 @@
                     </div>
                     <div class="flex flex-col md:flex-row gap-2">
                         <!-- 自定義日期選擇器 -->
-                        <!-- 修正：外層 div 加入 onclick 觸發 showPicker，input 設為 pointer-events-none -->
+                        <!-- 外層 div 加入 onclick 觸發 showPicker，input 設為 pointer-events-none 以解決手機點擊問題 -->
                         <div class="relative flex-1 group cursor-pointer" onclick="try{document.getElementById('new-vote-date').showPicker()}catch(e){document.getElementById('new-vote-date').focus()}">
                             <!-- 隱藏的原生 Input -->
                             <input type="date" id="new-vote-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
@@ -394,7 +394,7 @@
             }
         };
 
-        // --- Settings Logic (Moved Before usage in showAppUI) ---
+        // --- Settings Logic ---
         function getSettingsDocRef() {
             const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
             if (typeof __app_id !== 'undefined') {
@@ -476,7 +476,7 @@
             
             const header = document.getElementById('main-header');
             const createEventSection = document.getElementById('create-event-section');
-            const createVoteSection = document.getElementById('create-vote-section'); // 共用區塊
+            const createVoteSection = document.getElementById('create-vote-section');
             const guestHint = document.getElementById('guest-hint');
             const createEventBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
@@ -491,7 +491,6 @@
                 createEventBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 
-                // 動態設定樣式 (合併後的區塊)
                 createEventSection.classList.remove('hidden');
                 createVoteSection.classList.remove('hidden');
                 
@@ -501,7 +500,7 @@
                 createVoteSection.classList.remove('border-gray-800');
                 createVoteSection.classList.add('border-blue-200');
                 if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
-                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300"; // 預設邊框
+                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 
                 guestHint.classList.add('hidden');
 
