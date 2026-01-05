@@ -393,7 +393,7 @@
             }
         };
 
-        // --- Settings Logic ---
+        // --- Settings Logic (Moved Before usage in showAppUI) ---
         function getSettingsDocRef() {
             const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
             if (typeof __app_id !== 'undefined') {
@@ -415,6 +415,34 @@
                 console.error("Check setting failed:", e);
                 return true; 
             }
+        }
+
+        async function initSettingsToggle() {
+            regStatusText.textContent = "讀取中...";
+            try {
+                const docRef = getSettingsDocRef();
+                const docSnap = await getDoc(docRef);
+                let isOpen = true;
+                if (docSnap.exists()) {
+                    isOpen = docSnap.data().memberRegistrationOpen !== false;
+                }
+                regToggle.checked = isOpen;
+                updateStatusText(isOpen);
+                
+                regToggle.onchange = async () => {
+                    const newState = regToggle.checked;
+                    updateStatusText(newState);
+                    await setDoc(docRef, { memberRegistrationOpen: newState }, { merge: true });
+                };
+            } catch (e) {
+                console.error("Setting init failed", e);
+                regStatusText.textContent = "設定讀取失敗";
+            }
+        }
+
+        function updateStatusText(isOpen) {
+            regStatusText.textContent = isOpen ? "成員註冊：已開放" : "成員註冊：已關閉";
+            regStatusText.className = isOpen ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
         }
 
         // --- UI Update Logic ---
