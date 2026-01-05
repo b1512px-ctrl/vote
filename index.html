@@ -162,11 +162,12 @@
                     </div>
                     <div class="flex flex-col md:flex-row gap-2">
                         <!-- 自定義日期選擇器 -->
-                        <div class="relative flex-1 group">
-                            <!-- 隱藏的原生 Input，覆蓋在上方但透明 -->
-                            <input type="date" id="new-vote-date" class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer">
+                        <!-- 修正：外層 div 加入 onclick 觸發 showPicker，input 設為 pointer-events-none -->
+                        <div class="relative flex-1 group cursor-pointer" onclick="try{document.getElementById('new-vote-date').showPicker()}catch(e){document.getElementById('new-vote-date').focus()}">
+                            <!-- 隱藏的原生 Input -->
+                            <input type="date" id="new-vote-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
                             <!-- 顯示用的 Div -->
-                            <div id="date-display-box" class="w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors">
+                            <div id="date-display-box" class="w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300">
                                 <span id="date-display-text" class="text-gray-400 text-sm select-none">年/月/日</span>
                                 <i class="fa-regular fa-calendar text-gray-500"></i>
                             </div>
