@@ -377,13 +377,13 @@
         // --- 全域設定讀取 (Settings) ---
         
         function getSettingsDocRef() {
-            // 為了支援 Canvas 預覽與正式環境
+            // 修正路徑：將設定檔改存於 events/system_settings，沿用現有 Security Rules 權限
+            // 這樣不需要額外開啟 settings 集合的讀寫權限
             const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
-            // 使用 artifacts 路徑以符合權限
             if (typeof __app_id !== 'undefined') {
-                return doc(db, 'artifacts', appIdStr, 'public', 'data', 'settings', 'config');
+                return doc(db, 'artifacts', appIdStr, 'public', 'data', 'events', 'system_settings');
             } else {
-                return doc(db, 'settings', 'config');
+                return doc(db, 'events', 'system_settings');
             }
         }
 
@@ -392,13 +392,12 @@
                 const docSnap = await getDoc(getSettingsDocRef());
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    // 預設為 true (如果沒設定)
                     return data.memberRegistrationOpen !== false; 
                 }
                 return true; // 預設開放
             } catch (e) {
                 console.error("Check setting failed:", e);
-                return true; // 讀取失敗時預設開放
+                return true; 
             }
         }
 
@@ -547,6 +546,9 @@
                 } else {
                     document.getElementById('no-events-msg').classList.add('hidden');
                     snapshot.forEach(doc => {
+                        // 隱藏系統設定檔
+                        if (doc.id === 'system_settings') return;
+
                         const data = doc.data();
                         const date = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : '剛剛';
                         
