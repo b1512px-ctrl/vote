@@ -155,16 +155,24 @@
             <div id="voting-view" class="hidden">
                 <h2 id="current-event-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
 
-                <!-- 新增選項 (管理員 + 成員 可見) -->
-                <!-- 修正：移除重複的 ID 區塊，統一使用這一個區塊，並透過 JS 動態調整樣式 -->
-                <!-- 樣式修正：bg-white 解決灰色問題, w-full 解決滿版問題, 移除 appearance-none 恢復日曆圖示 -->
+                <!-- 新增選項 (共用區塊：管理員與成員共用) -->
                 <div id="create-vote-section" class="bg-white rounded-xl shadow-md p-4 mb-6 border hidden">
                     <div class="flex items-center mb-2 text-gray-800 text-sm font-bold" id="cv-header-text">
                         <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
                     </div>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white w-full">
-                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 w-full">
+                        <!-- 自定義日期選擇器 -->
+                        <div class="relative flex-1 group">
+                            <!-- 隱藏的原生 Input，覆蓋在上方但透明 -->
+                            <input type="date" id="new-vote-date" class="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer">
+                            <!-- 顯示用的 Div -->
+                            <div id="date-display-box" class="w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors">
+                                <span id="date-display-text" class="text-gray-400 text-sm select-none">年/月/日</span>
+                                <i class="fa-regular fa-calendar text-gray-500"></i>
+                            </div>
+                        </div>
+                        
+                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
                         <button id="add-vote-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors">新增</button>
                     </div>
                 </div>
@@ -235,6 +243,10 @@
         const superAdminSettings = document.getElementById('super-admin-settings');
         const regToggle = document.getElementById('reg-toggle');
         const regStatusText = document.getElementById('reg-status-text');
+        
+        // Date Picker Elements
+        const newVoteDateInput = document.getElementById('new-vote-date');
+        const dateDisplayText = document.getElementById('date-display-text');
 
         // 1. 初始化檢查
         onAuthStateChanged(auth, (user) => {
@@ -244,6 +256,21 @@
                 showAppUI();
             } else {
                 showLoginUI();
+            }
+        });
+
+        // 2. 日期選擇器邏輯 (Custom Date Picker)
+        newVoteDateInput.addEventListener('change', function() {
+            if (this.value) {
+                // 將 yyyy-mm-dd 轉為 yyyy/mm/dd
+                const formattedDate = this.value.replace(/-/g, '/');
+                dateDisplayText.textContent = formattedDate;
+                dateDisplayText.classList.remove('text-gray-400');
+                dateDisplayText.classList.add('text-gray-800');
+            } else {
+                dateDisplayText.textContent = '年/月/日';
+                dateDisplayText.classList.add('text-gray-400');
+                dateDisplayText.classList.remove('text-gray-800');
             }
         });
 
@@ -420,11 +447,12 @@
             
             const header = document.getElementById('main-header');
             const createEventSection = document.getElementById('create-event-section');
-            const createVoteSection = document.getElementById('create-vote-section');
+            const createVoteSection = document.getElementById('create-vote-section'); // 共用區塊
             const guestHint = document.getElementById('guest-hint');
             const createEventBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
             const cvHeaderText = document.getElementById('cv-header-text');
+            const dateDisplayBox = document.getElementById('date-display-box');
 
             if (isAdmin) {
                 // 管理員：藍色系
@@ -434,7 +462,7 @@
                 createEventBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 
-                // 動態設定新增選項區塊的樣式
+                // 動態設定樣式 (合併後的區塊)
                 createEventSection.classList.remove('hidden');
                 createVoteSection.classList.remove('hidden');
                 
@@ -444,6 +472,7 @@
                 createVoteSection.classList.remove('border-gray-800');
                 createVoteSection.classList.add('border-blue-200');
                 if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
+                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300"; // 預設邊框
                 
                 guestHint.classList.add('hidden');
 
@@ -471,6 +500,7 @@
                 createVoteSection.classList.remove('border-blue-200');
                 createVoteSection.classList.add('border-gray-800');
                 if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
+                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 
                 guestHint.classList.add('hidden');
                 superAdminSettings.classList.add('hidden');
@@ -487,34 +517,6 @@
             }
 
             loadDashboard();
-        }
-
-        async function initSettingsToggle() {
-            regStatusText.textContent = "讀取中...";
-            try {
-                const docRef = getSettingsDocRef();
-                const docSnap = await getDoc(docRef);
-                let isOpen = true;
-                if (docSnap.exists()) {
-                    isOpen = docSnap.data().memberRegistrationOpen !== false;
-                }
-                regToggle.checked = isOpen;
-                updateStatusText(isOpen);
-                
-                regToggle.onchange = async () => {
-                    const newState = regToggle.checked;
-                    updateStatusText(newState);
-                    await setDoc(docRef, { memberRegistrationOpen: newState }, { merge: true });
-                };
-            } catch (e) {
-                console.error("Setting init failed", e);
-                regStatusText.textContent = "設定讀取失敗";
-            }
-        }
-
-        function updateStatusText(isOpen) {
-            regStatusText.textContent = isOpen ? "成員註冊：已開放" : "成員註冊：已關閉";
-            regStatusText.className = isOpen ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
         }
 
         // --- Dashboard Logic ---
@@ -583,7 +585,7 @@
         window.delEvent = async (id, e) => {
             e.stopPropagation();
             if (!isAdmin) return alert("僅管理員可刪除");
-            if (!confirm('確定要刪除整個活動嗎？')) return;
+            if (!confirm('確定要刪除整個活動嗎？\n這將會一併刪除該活動內的所有投票資料！')) return;
             
             try {
                 const eventsCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
@@ -680,6 +682,11 @@
                 });
                 document.getElementById('new-vote-date').value = '';
                 document.getElementById('new-vote-note').value = '';
+                // 重置自定義日期顯示
+                dateDisplayText.textContent = '年/月/日';
+                dateDisplayText.classList.add('text-gray-400');
+                dateDisplayText.classList.remove('text-gray-800');
+                
             } catch (e) { handleError(e); }
             this.disabled = false;
         };
