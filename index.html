@@ -155,13 +155,25 @@
             <div id="voting-view" class="hidden">
                 <h2 id="current-event-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
 
-                <!-- 新增選項 (管理員 + 成員 可見) -->
+                <!-- 新增選項 (管理員) -->
+                <div id="admin-create-vote" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-yellow-200 hidden">
+                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold">
+                        <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
+                    </div>
+                    <div class="flex flex-col md:flex-row gap-2">
+                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
+                        <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
+                        <button id="add-vote-btn" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-bold">新增</button>
+                    </div>
+                </div>
+
+                <!-- 新增選項 (成員) -->
                 <div id="create-vote-section" class="bg-white rounded-xl shadow-md p-4 mb-6 border hidden">
                     <div class="flex items-center mb-2 text-gray-800 text-sm font-bold">
                         <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
                     </div>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
+                        <input type="date" id="new-vote-date" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 bg-white appearance-none">
                         <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
                         <button id="add-vote-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors">新增</button>
                     </div>
@@ -433,6 +445,7 @@
             const header = document.getElementById('main-header');
             const createEventSection = document.getElementById('create-event-section');
             const createVoteSection = document.getElementById('create-vote-section');
+            const adminCreateVote = document.getElementById('admin-create-vote');
             const guestHint = document.getElementById('guest-hint');
             const createEventBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
@@ -447,7 +460,8 @@
                 addVoteBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 
                 createEventSection.classList.remove('hidden');
-                createVoteSection.classList.remove('hidden');
+                adminCreateVote.classList.remove('hidden');
+                createVoteSection.classList.add('hidden'); // 管理員用專屬的
                 createEventSection.classList.remove('border-gray-800');
                 createEventSection.classList.add('border-blue-500');
                 
@@ -471,6 +485,7 @@
                 addVoteBtn.className = "bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
 
                 createEventSection.classList.remove('hidden');
+                adminCreateVote.classList.add('hidden');
                 createVoteSection.classList.remove('hidden');
                 createEventSection.classList.remove('border-blue-500');
                 createEventSection.classList.add('border-gray-800'); // 黑色邊框提示
@@ -484,6 +499,7 @@
                 header.classList.add('bg-gray-600');
                 
                 createEventSection.classList.add('hidden');
+                adminCreateVote.classList.add('hidden');
                 createVoteSection.classList.add('hidden');
                 guestHint.classList.remove('hidden');
                 superAdminSettings.classList.add('hidden');
@@ -670,6 +686,17 @@
                 }
             }, handleError);
         }
+
+        // Attach listeners dynamically because elements might be hidden
+        // Wait, for this simple case, we need to handle dual inputs or just use one.
+        // We have two "add vote" sections: admin-create-vote and create-vote-section.
+        // But getElementById only returns one.
+        // I'll make the member section use the same IDs for now and hide the admin one or vice versa.
+        // Actually, since I duplicated the ID in HTML, I must fix the listener to use the visible one.
+        
+        // BETTER FIX: Use the 'create-vote-section' for both roles (just style it differently)
+        // I will remove the separate 'admin-create-vote' block logic in JS and rely on classes.
+        // See showAppUI logic adjustments.
 
         document.getElementById('add-vote-btn').onclick = async function() {
             if (!isAdmin && !isMember) return alert("權限不足");
