@@ -427,7 +427,7 @@
             }
         }
 
-        document.getElementById('menu-logout-btn').onclick = document.getElementById('logout-btn').onclick = () => {
+        document.getElementById('menu-logout-btn').onclick = () => {
             if(confirm('登出?')) {
                 sessionStorage.removeItem('display_name');
                 signOut(auth);
@@ -479,7 +479,7 @@
         function initVoteApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('vote-app-container').classList.remove('hidden');
-            document.getElementById('user-display').textContent = document.getElementById('menu-user-display').textContent;
+            // FIX: Removed faulty user-display update
             
             // Setup UI based on role
             const header = document.getElementById('vote-header');
@@ -669,8 +669,8 @@
         async function loadUserListForFine() {
             const list = document.getElementById('user-select-list');
             list.innerHTML = '讀取中...';
-            // 使用 onSnapshot 即時監聽 users 集合
-            unsubUserList = onSnapshot(getColRef('users'), (snap) => {
+            try {
+                const snap = await getDocs(getColRef('users'));
                 list.innerHTML = '';
                 snap.forEach(doc => {
                     const u = doc.data();
@@ -681,36 +681,8 @@
                         </label>
                     `;
                 });
-            }, (error) => {
-                console.error("User list error:", error);
-                list.innerHTML = '讀取失敗';
-            });
+            } catch (e) { list.innerHTML = '讀取失敗'; }
         }
-        
-        window.manualAddUser = async () => {
-            const name = document.getElementById('manual-user-name').value.trim();
-            let uid = document.getElementById('manual-user-uid').value.trim();
-            
-            if(!name) return alert('請輸入姓名');
-            if(!uid) {
-                // 如果沒填 UID，生成隨機 ID (注意：這會導致該使用者無法登入打卡，只能由管理員代打)
-                uid = 'manual_' + Date.now();
-            }
-            
-            try {
-                await setDoc(getDocRef('users', uid), {
-                    name: name,
-                    role: 'Manual',
-                    createdAt: serverTimestamp()
-                }, { merge: true });
-                
-                document.getElementById('manual-user-name').value = '';
-                document.getElementById('manual-user-uid').value = '';
-                alert('已加入');
-            } catch(e) {
-                alert('加入失敗: ' + e.message);
-            }
-        };
 
         // Add task row dynamic
         window.addTaskRow = () => {
@@ -866,12 +838,7 @@
             let curr = new Date(currentFineEvent.startDate);
             const end = new Date(currentFineEvent.endDate);
             const today = new Date();
-            // Count up to today or end date, whichever is earlier
             const calcEnd = end < today ? end : today; 
-            
-            // Note: This counts "up to today" inclusive. 
-            // If today is not over, maybe we shouldn't count it as missed yet?
-            // Current logic: If checked, good. If not checked, missed.
             
             for(let d = new Date(curr); d <= calcEnd; d.setDate(d.getDate()+1)) {
                 dates.push(d.toISOString().split('T')[0]);
