@@ -573,7 +573,7 @@
             showMenuUI();
         };
 
-        // --- VOTE APP LOGIC (Condensed) ---
+        // --- VOTE APP LOGIC ---
         let unsubEvents, unsubVotes, currentVoteEventId;
         function initVoteApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
@@ -746,7 +746,116 @@
             calculateAndRenderStats();
         };
 
-        // --- LESSON APP LOGIC (New) ---
+        function renderDailyCheck() {
+            const area = document.getElementById('daily-check-area');
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('today-date-str').textContent = todayStr;
+            
+            // Check if today is within range
+            if (todayStr < currentFineEvent.startDate || todayStr > currentFineEvent.endDate) {
+                area.innerHTML = '<p class="text-gray-500">非活動期間</p>';
+                return;
+            }
+
+            // Check if current user is participant
+            const me = currentFineEvent.participants.find(p => p.uid === currentUser.uid);
+            if (!me) {
+                area.innerHTML = '<p class="text-gray-500">您不是此活動的參加者</p>';
+                return;
+            }
+
+            // Listen to my record for today
+            const recordId = `${currentFineEvent.id}_${todayStr}_${currentUser.uid}`;
+            const ref = getDocRef('fine_records', recordId);
+            
+            onSnapshot(ref, (snap) => {
+                const data = snap.exists() ? snap.data() : { completed: [] };
+                let html = '';
+                currentFineEvent.tasks.forEach(t => {
+                    const checked = data.completed && data.completed.includes(t.id) ? 'checked' : '';
+                    html += `
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                            <input type="checkbox" onchange="toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
+                            <span class="ml-3 font-medium text-gray-700">${t.name}</span>
+                        </label>
+                    `;
+                });
+                area.innerHTML = html;
+            });
+        }
+
+        window.toggleTask = async (recId, taskId, isDone) => {
+            const ref = getDocRef('fine_records', recId);
+            const snap = await getDoc(ref);
+            if (!snap.exists()) {
+                if (isDone) await setDoc(ref, { completed: [taskId] });
+            } else {
+                if (isDone) await updateDoc(ref, { completed: arrayUnion(taskId) });
+                else await updateDoc(ref, { completed: arrayRemove(taskId) });
+            }
+        };
+
+        async function calculateAndRenderStats() {
+            const q = query(getColRef('fine_records'), 
+                where('__name__', '>=', `${currentFineEvent.id}_`), 
+                where('__name__', '<=', `${currentFineEvent.id}_\uf8ff`));
+            
+            const snap = await getDocs(q);
+            const recordsMap = {}; 
+            snap.forEach(d => {
+                const parts = d.id.split('_'); 
+                const uid = parts.slice(2).join('_');
+                const date = parts[1];
+                if(!recordsMap[uid]) recordsMap[uid] = {};
+                recordsMap[uid][date] = d.data().completed || [];
+            });
+
+            // Calculate Date Array
+            const dates = [];
+            let curr = new Date(currentFineEvent.startDate);
+            const end = new Date(currentFineEvent.endDate);
+            const today = new Date();
+            const calcEnd = end < today ? end : today; 
+            
+            for(let d = new Date(curr); d <= calcEnd; d.setDate(d.getDate()+1)) {
+                dates.push(d.toISOString().split('T')[0]);
+            }
+
+            // Build Table Header
+            const thead = document.getElementById('stats-header');
+            let headerHTML = '<th class="px-4 py-3 bg-gray-50 whitespace-nowrap">姓名</th>';
+            currentFineEvent.tasks.forEach(t => {
+                headerHTML += `<th class="px-4 py-3 text-center bg-gray-50 text-red-600 whitespace-nowrap">${t.name}<br><span class="text-xs">未完成</span></th>`;
+            });
+            headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold whitespace-nowrap">總罰金</th>';
+            thead.innerHTML = headerHTML;
+
+            // Build Body
+            const tbody = document.getElementById('stats-body');
+            tbody.innerHTML = '';
+            
+            currentFineEvent.participants.forEach(p => {
+                const userRecs = recordsMap[p.uid] || {};
+                let rowHTML = `<td class="px-4 py-3 font-medium text-gray-900 border-b whitespace-nowrap">${p.name}</td>`;
+                let totalFine = 0;
+
+                currentFineEvent.tasks.forEach(t => {
+                    let missCount = 0;
+                    dates.forEach(date => {
+                        const done = userRecs[date] && userRecs[date].includes(t.id);
+                        if (!done) missCount++;
+                    });
+                    const fine = missCount * t.amount;
+                    totalFine += fine;
+                    rowHTML += `<td class="px-4 py-3 text-center border-b text-gray-600 whitespace-nowrap">${missCount} <span class="text-xs text-gray-400">($${fine})</span></td>`;
+                });
+                
+                rowHTML += `<td class="px-4 py-3 text-right border-b font-bold text-red-600 whitespace-nowrap">$${totalFine}</td>`;
+                tbody.innerHTML += `<tr>${rowHTML}</tr>`;
+            });
+        }
+
+        // --- LESSON APP LOGIC ---
         let lessonSelectedUid = null;
         let lessonSelectedDate = null;
         
@@ -976,17 +1085,6 @@
             }
             container.innerHTML = ''; // Cleanup
         };
-        
-        // Pass functions to global for HTML access
-        window.addTaskRow = addTaskRow;
-        window.createFineEvent = createFineEvent;
-        window.delFineEvent = delFineEvent;
-        window.delVote = delVote;
-        window.delVoteItem = delVoteItem;
-        window.doVote = doVote;
-        window.manualAddUser = manualAddUser;
-        window.toggleFineForm = toggleFineForm;
-        window.toggleTask = toggleTask;
     </script>
 </body>
 </html>
