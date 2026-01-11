@@ -211,12 +211,12 @@
                             </div>
                         </div>
                         
-                        <!-- 任務設定 (修正：手機版改為上下排列，電腦版左右) -->
+                        <!-- 任務設定 -->
                         <div class="mb-4 p-3 bg-gray-50 rounded border">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
                             <div id="task-inputs" class="space-y-3">
                                 <!-- JS 動態生成的 task-row 也會套用此結構 -->
-                                <div class="flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0">
+                                <div class="flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0">
                                     <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
                                     <div class="flex gap-2">
                                         <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
@@ -235,7 +235,7 @@
                             </div>
                             <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
                             
-                            <!-- 手動加入人員 (修正：手機版上下排列) -->
+                            <!-- 手動加入人員 -->
                             <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
                                 <p class="text-xs font-bold text-gray-600 mb-1">找不到人？手動補登</p>
                                 <div class="flex flex-col sm:flex-row gap-2">
@@ -249,7 +249,7 @@
                             </div>
                         </div>
 
-                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors shadow-sm">建立活動</button>
+                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
                     </div>
                 </div>
 
@@ -264,6 +264,7 @@
                         <h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2>
                         <p id="fd-dates" class="text-sm text-gray-500"></p>
                     </div>
+                    <!-- 修正：使用 window.loadFineDashboard 並美化按鈕 -->
                     <button onclick="window.loadFineDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
                         <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
                     </button>
@@ -371,6 +372,25 @@
                 showLoginUI();
             }
         });
+
+        // 2. 日期選擇器邏輯 (Custom Date Picker) - VOTE APP
+        const newVoteDateInput = document.getElementById('new-vote-date');
+        const dateDisplayText = document.getElementById('date-display-text');
+        
+        if (newVoteDateInput) {
+            newVoteDateInput.addEventListener('change', function() {
+                if (this.value) {
+                    const formattedDate = this.value.replace(/-/g, '/');
+                    dateDisplayText.textContent = formattedDate;
+                    dateDisplayText.classList.remove('text-gray-400');
+                    dateDisplayText.classList.add('text-gray-800');
+                } else {
+                    dateDisplayText.textContent = '年/月/日';
+                    dateDisplayText.classList.add('text-gray-400');
+                    dateDisplayText.classList.remove('text-gray-800');
+                }
+            });
+        }
 
         function checkUserPermissions(user) {
             const email = user.email || '';
@@ -526,6 +546,7 @@
             const addVoteBtn = document.getElementById('add-vote-btn');
             const cvHeader = document.getElementById('cv-header-text');
             const settings = document.getElementById('super-admin-settings');
+            const dateDisplayBox = document.getElementById('date-display-box');
 
             if (isAdmin) {
                 header.className = "bg-blue-700 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
@@ -534,6 +555,7 @@
                 createSec.classList.remove('hidden', 'border-gray-800'); createSec.classList.add('border-blue-500');
                 createVoteSec.classList.remove('hidden', 'border-gray-800'); createVoteSec.classList.add('border-blue-200');
                 if(cvHeader) cvHeader.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
+                if(dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 guestHint.classList.add('hidden');
                 
                 if (displayName === SUPER_ADMIN) {
@@ -548,6 +570,7 @@
                 createSec.classList.remove('hidden', 'border-blue-500'); createSec.classList.add('border-gray-800');
                 createVoteSec.classList.remove('hidden', 'border-blue-200'); createVoteSec.classList.add('border-gray-800');
                 if(cvHeader) cvHeader.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
+                if(dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 guestHint.classList.add('hidden');
                 settings.classList.add('hidden');
             } else {
