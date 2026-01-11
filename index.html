@@ -180,54 +180,62 @@
         <main class="max-w-5xl mx-auto px-4 py-6">
             <!-- 罰款儀表板 -->
             <div id="fine-dashboard-view">
-                <!-- 管理員：建立罰款活動 -->
-                <div id="create-fine-event-card" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-red-500 hidden">
-                    <h2 class="text-lg font-semibold mb-4 text-gray-700">建立新活動任務</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <input type="text" id="fine-title" placeholder="活動名稱 (例: 1月健身挑戰)" class="border rounded px-3 py-2 w-full">
-                        <div class="flex gap-2">
-                            <input type="date" id="fine-start" class="border rounded px-3 py-2 w-1/2" title="開始日期">
-                            <input type="date" id="fine-end" class="border rounded px-3 py-2 w-1/2" title="結束日期">
-                        </div>
+                <!-- 管理員：建立罰款活動 (修改：增加點擊展開功能) -->
+                <div id="create-fine-event-card" class="bg-white rounded-xl shadow-md mb-8 border-l-4 border-red-500 hidden overflow-hidden transition-all">
+                    <!-- Header -->
+                    <div class="p-6 flex justify-between items-center cursor-pointer hover:bg-gray-50 select-none" onclick="window.toggleFineForm()">
+                        <h2 class="text-lg font-semibold text-gray-700 m-0">建立新活動任務</h2>
+                        <i id="fine-form-arrow" class="fa-solid fa-chevron-down text-gray-400 transition-transform duration-300"></i>
                     </div>
                     
-                    <!-- 任務設定 -->
-                    <div class="mb-4 p-3 bg-gray-50 rounded border">
-                        <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
-                        <div id="task-inputs" class="space-y-2">
-                            <div class="flex gap-2 task-row">
-                                <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 flex-1 task-name">
-                                <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 w-24 task-fine">
-                            </div>
-                        </div>
-                        <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-2 hover:underline"><i class="fa-solid fa-plus"></i> 增加任務</button>
-                    </div>
-
-                    <!-- 人員選擇 -->
-                    <div class="mb-4">
-                        <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
-                        <div id="user-select-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto border p-2 rounded bg-white">
-                            <p class="text-xs text-gray-400 col-span-full">載入中...</p>
-                        </div>
-                        <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
-                        
-                        <!-- 手動加入人員 (新功能) -->
-                        <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
-                            <p class="text-xs font-bold text-gray-600 mb-1">找不到人？手動補登</p>
+                    <!-- Content (Hidden by default) -->
+                    <div id="fine-form-content" class="px-6 pb-6 hidden border-t border-gray-100 pt-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <input type="text" id="fine-title" placeholder="活動名稱 (例: 1月健身挑戰)" class="border rounded px-3 py-2 w-full">
                             <div class="flex gap-2">
-                                <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-1/3">
-                                <input type="text" id="manual-user-uid" placeholder="UID (在Firebase Authentication查看)" class="border rounded px-2 py-1 text-sm flex-1">
-                                <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700">加入</button>
+                                <input type="date" id="fine-start" class="border rounded px-3 py-2 w-1/2" title="開始日期">
+                                <input type="date" id="fine-end" class="border rounded px-3 py-2 w-1/2" title="結束日期">
                             </div>
-                            <p class="text-[10px] text-gray-400 mt-1">注意：若不填寫 UID，系統會隨機生成，但該使用者將無法登入打卡。</p>
                         </div>
-                    </div>
+                        
+                        <!-- 任務設定 -->
+                        <div class="mb-4 p-3 bg-gray-50 rounded border">
+                            <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
+                            <div id="task-inputs" class="space-y-2">
+                                <div class="flex gap-2 task-row">
+                                    <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 flex-1 task-name">
+                                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 w-24 task-fine">
+                                </div>
+                            </div>
+                            <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-2 hover:underline"><i class="fa-solid fa-plus"></i> 增加任務</button>
+                        </div>
 
-                    <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
+                        <!-- 人員選擇 -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
+                            <div id="user-select-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto border p-2 rounded bg-white">
+                                <p class="text-xs text-gray-400 col-span-full">載入中...</p>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
+                            
+                            <!-- 手動加入人員 -->
+                            <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
+                                <p class="text-xs font-bold text-gray-600 mb-1">找不到人？手動補登</p>
+                                <div class="flex gap-2">
+                                    <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-1/3">
+                                    <input type="text" id="manual-user-uid" placeholder="UID" class="border rounded px-2 py-1 text-sm flex-1">
+                                    <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700">加入</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
+                    </div>
                 </div>
 
                 <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">進行中的任務</h2></div>
-                <div id="fine-events-list" class="grid grid-cols-1 gap-4"></div>
+                <!-- 修改：grid-cols-1 md:grid-cols-2 gap-4 (雙欄排版) -->
+                <div id="fine-events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
 
             <!-- 罰款詳情 (打卡 + 報表) -->
@@ -433,6 +441,7 @@
             }
         }
 
+        // 修正：只綁定選單頁面的登出按鈕
         document.getElementById('menu-logout-btn').onclick = () => {
             if(confirm('登出?')) {
                 sessionStorage.removeItem('display_name');
@@ -485,7 +494,7 @@
         function initVoteApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('vote-app-container').classList.remove('hidden');
-            // 修正：移除了設置 user-display 的程式碼，因為該元素在投票頁面不存在
+            // 修正：移除存取 user-display 的程式碼
             
             // Setup UI based on role
             const header = document.getElementById('vote-header');
@@ -724,6 +733,18 @@
                 <button onclick="this.parentElement.remove()" class="text-red-500"><i class="fa-solid fa-xmark"></i></button>
             `;
             document.getElementById('task-inputs').appendChild(div);
+        };
+
+        // NEW: Toggle fine form visibility
+        window.toggleFineForm = () => {
+            const content = document.getElementById('fine-form-content');
+            const arrow = document.getElementById('fine-form-arrow');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                arrow.style.transform = 'rotate(180deg)';
+            }
         };
 
         window.createFineEvent = async () => {
