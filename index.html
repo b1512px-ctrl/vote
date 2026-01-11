@@ -455,7 +455,7 @@
                              window.loadLessonData();
                         }
                     } else {
-                         if(id === 'lesson-form-date') targetDisplay.textContent = '今天';
+                         if(id === 'lesson-form-date') targetDisplay.textContent = getLocalTodayStr().replace(/-/g, '/');
                          else if(id === 'new-vote-date') targetDisplay.textContent = '年/月/日';
                          else targetDisplay.textContent = id === 'fine-start' ? '開始日期' : '結束日期';
                          targetDisplay.classList.add('text-gray-400');
@@ -960,19 +960,19 @@
             
             document.getElementById('lesson-list-view').classList.add('hidden');
             document.getElementById('lesson-form-view').classList.remove('hidden');
-            document.getElementById('form-date-title').textContent = d.replace(/-/g, '/');
+            
+            // Update Title (Fixed: don't target deleted ID)
+            const formDateDisplay = document.getElementById('lesson-form-date-display');
+            if(formDateDisplay) {
+                formDateDisplay.textContent = d.replace(/-/g, '/');
+                formDateDisplay.classList.remove('text-gray-800'); // Remove default style
+                formDateDisplay.classList.add('text-teal-700'); // Add active style
+            }
             
             // Reset Date Picker text in Form
             const formDateInput = document.getElementById('lesson-form-date');
-            const formDateDisplay = document.getElementById('lesson-form-date-display');
             if(formDateInput) {
                 formDateInput.value = d;
-                // If it's today, show "Today" text? Or just date?
-                // Request said default to today. If user picks, show date.
-                // Let's show date string to be clear.
-                formDateDisplay.textContent = d.replace(/-/g, '/');
-                formDateDisplay.classList.remove('text-gray-400');
-                formDateDisplay.classList.add('text-gray-800');
             }
             
             // If viewing other's record (via clicking card), disable editing
