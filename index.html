@@ -930,24 +930,28 @@
                 saveBtn.classList.remove('hidden');
             }
             
-            // Query: daily_lessons where uid == selectedUid AND date == selectedDate
-            // Note: Composite index might be needed for where(uid) + where(date).
-            // To avoid index, we can make ID = uid_date
-            const docId = `${lessonSelectedUid}_${lessonSelectedDate}`;
-            const ref = getDocRef('daily_lessons', docId);
+            // Query: daily_lessons where uid == selectedUid
+            // We fetch all lessons for this user to avoid composite index requirement on (uid, date)
+            const q = query(getColRef('daily_lessons'), where('uid', '==', lessonSelectedUid));
             
             try {
-                const snap = await getDoc(ref);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    const inputs = document.querySelectorAll('#gratitude-inputs input');
-                    if(data.gratitudes) data.gratitudes.forEach((txt, i) => { if(inputs[i]) inputs[i].value = txt; });
-                    document.getElementById('carebook-input').value = data.careBook || '';
-                    document.getElementById('todo-input').value = data.todo || '';
-                    msg.textContent = '';
-                } else {
-                    msg.textContent = '無資料';
-                }
+                const snap = await getDocs(q);
+                let found = false;
+                
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.date === lessonSelectedDate) {
+                        const inputs = document.querySelectorAll('#gratitude-inputs input');
+                        if(data.gratitudes) data.gratitudes.forEach((txt, i) => { if(inputs[i]) inputs[i].value = txt; });
+                        document.getElementById('carebook-input').value = data.careBook || '';
+                        document.getElementById('todo-input').value = data.todo || '';
+                        msg.textContent = '';
+                        found = true;
+                    }
+                });
+                
+                if(!found) msg.textContent = '無資料';
+
             } catch (e) {
                 console.error(e);
                 msg.textContent = '讀取錯誤';
@@ -991,19 +995,24 @@
             d.setDate(d.getDate() - 60);
             const dateStr = d.toISOString().split('T')[0];
             
-            // Query only my own old lessons to avoid permission issues, 
-            // or rely on a scheduled function (which we don't have here).
-            // Client-side cleanup is imperfect but works for personal data maintenance.
-            const q = query(getColRef('daily_lessons'), 
-                where('uid', '==', currentUser.uid), 
-                where('date', '<', dateStr));
+            // Use simple query and filter in memory to avoid composite index error
+            const q = query(getColRef('daily_lessons'), where('uid', '==', currentUser.uid));
             
             const snap = await getDocs(q);
             if(!snap.empty) {
                 const batch = writeBatch(db);
-                snap.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-                console.log('Cleaned up old lessons');
+                let count = 0;
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    if(data.date < dateStr) {
+                         batch.delete(doc.ref);
+                         count++;
+                    }
+                });
+                if(count > 0) {
+                    await batch.commit();
+                    console.log('Cleaned up old lessons');
+                }
             }
         }
         
@@ -1011,7 +1020,9 @@
             const list = document.getElementById('lesson-history-list');
             list.innerHTML = '<p class="text-gray-400 text-sm col-span-full">載入中...</p>';
             
-            const q = query(getColRef('daily_lessons'), where('uid', '==', uid), orderBy('date', 'desc'), limit(60));
+            // Use simple query to avoid composite index error: where(uid) + orderBy(date) requires index.
+            const q = query(getColRef('daily_lessons'), where('uid', '==', uid));
+            
             try {
                 const snap = await getDocs(q);
                 list.innerHTML = '';
@@ -1020,11 +1031,16 @@
                     return;
                 }
                 
-                snap.forEach(doc => {
-                    const d = doc.data();
+                // Sort in memory
+                const docs = [];
+                snap.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+                docs.sort((a, b) => b.date.localeCompare(a.date));
+                const recentDocs = docs.slice(0, 60);
+                
+                recentDocs.forEach(d => {
                     list.innerHTML += `
                         <label class="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-teal-50">
-                            <input type="checkbox" value="${doc.id}" class="lesson-export-check form-checkbox text-teal-600 rounded mr-2">
+                            <input type="checkbox" value="${d.id}" class="lesson-export-check form-checkbox text-teal-600 rounded mr-2">
                             <span class="text-sm text-gray-700">${d.date}</span>
                         </label>
                     `;
