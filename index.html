@@ -917,7 +917,7 @@
                     }
                     userSelect.appendChild(opt);
                 });
-                if(!hasMe) { // Just in case
+                if(!hasMe) { 
                     const opt = document.createElement('option');
                     opt.value = currentUser.uid;
                     opt.textContent = displayName;
@@ -1053,7 +1053,6 @@
                     createdAt: serverTimestamp()
                 });
                 document.getElementById('lesson-msg').textContent = '已儲存!';
-                loadLessonHistory(currentUser.uid); // Refresh history
             } catch (e) {
                 alert('儲存失敗: ' + e.message);
             }
