@@ -141,7 +141,6 @@
             <div id="vote-detail-view" class="hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 id="current-vote-title" class="text-2xl font-bold text-gray-800"></h2>
-                    <!-- 修正：使用 window.loadVoteDashboard 並美化按鈕 -->
                     <button onclick="window.loadVoteDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
                         <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
                     </button>
@@ -180,7 +179,7 @@
         <main class="max-w-5xl mx-auto px-4 py-6">
             <!-- 罰款儀表板 -->
             <div id="fine-dashboard-view">
-                <!-- 管理員：建立罰款活動 (修改：增加點擊展開功能) -->
+                <!-- 管理員：建立罰款活動 -->
                 <div id="create-fine-event-card" class="bg-white rounded-xl shadow-md mb-8 border-l-4 border-red-500 hidden overflow-hidden transition-all">
                     <!-- Header -->
                     <div class="p-6 flex justify-between items-center cursor-pointer hover:bg-gray-50 select-none" onclick="window.toggleFineForm()">
@@ -193,8 +192,22 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <input type="text" id="fine-title" placeholder="活動名稱 (例: 1月健身挑戰)" class="border rounded px-3 py-2 w-full">
                             <div class="flex gap-2">
-                                <input type="date" id="fine-start" class="border rounded px-3 py-2 w-1/2" title="開始日期">
-                                <input type="date" id="fine-end" class="border rounded px-3 py-2 w-1/2" title="結束日期">
+                                <!-- 自定義開始日期 -->
+                                <div class="relative w-1/2 group cursor-pointer" onclick="try{document.getElementById('fine-start').showPicker()}catch(e){document.getElementById('fine-start').focus()}">
+                                    <input type="date" id="fine-start" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
+                                    <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-200">
+                                        <span id="fine-start-display-text" class="text-gray-400 text-sm select-none">開始日期</span>
+                                        <i class="fa-regular fa-calendar text-gray-400"></i>
+                                    </div>
+                                </div>
+                                <!-- 自定義結束日期 -->
+                                <div class="relative w-1/2 group cursor-pointer" onclick="try{document.getElementById('fine-end').showPicker()}catch(e){document.getElementById('fine-end').focus()}">
+                                    <input type="date" id="fine-end" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
+                                    <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-200">
+                                        <span id="fine-end-display-text" class="text-gray-400 text-sm select-none">結束日期</span>
+                                        <i class="fa-regular fa-calendar text-gray-400"></i>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -442,12 +455,15 @@
         }
 
         // 修正：只綁定選單頁面的登出按鈕
-        document.getElementById('menu-logout-btn').onclick = () => {
-            if(confirm('登出?')) {
-                sessionStorage.removeItem('display_name');
-                signOut(auth);
-            }
-        };
+        const menuLogoutBtn = document.getElementById('menu-logout-btn');
+        if (menuLogoutBtn) {
+            menuLogoutBtn.onclick = () => {
+                if(confirm('登出?')) {
+                    sessionStorage.removeItem('display_name');
+                    signOut(auth);
+                }
+            };
+        }
 
         function showLoginUI() {
             document.getElementById('welcome-modal').classList.remove('hidden');
@@ -647,6 +663,9 @@
             document.getElementById('new-vote-date').value = '';
             document.getElementById('new-vote-note').value = '';
             document.getElementById('date-display-text').textContent = '年/月/日';
+            // fix reset color
+             document.getElementById('date-display-text').classList.add('text-gray-400');
+             document.getElementById('date-display-text').classList.remove('text-gray-800');
         };
         window.doVote = async (id, has) => {
             const ref = getDocRef('votes', id);
@@ -746,6 +765,22 @@
                 arrow.style.transform = 'rotate(180deg)';
             }
         };
+        
+        // JS listeners for custom date inputs in fine form
+        ['fine-start', 'fine-end'].forEach(id => {
+            document.getElementById(id).addEventListener('change', function() {
+                const display = document.getElementById(id + '-display-text');
+                if (this.value) {
+                    display.textContent = this.value.replace(/-/g, '/');
+                    display.classList.remove('text-gray-400');
+                    display.classList.add('text-gray-800');
+                } else {
+                    display.textContent = id === 'fine-start' ? '開始日期' : '結束日期';
+                     display.classList.add('text-gray-400');
+                     display.classList.remove('text-gray-800');
+                }
+            });
+        });
 
         window.createFineEvent = async () => {
             const title = document.getElementById('fine-title').value;
@@ -772,7 +807,27 @@
                 createdAt: serverTimestamp()
             });
             alert('建立成功');
-            // reset form...
+            
+            // Clear form
+            document.getElementById('fine-title').value = '';
+            document.getElementById('fine-start').value = '';
+            document.getElementById('fine-end').value = '';
+            // Reset dates display
+            document.getElementById('fine-start-display-text').textContent = '開始日期';
+            document.getElementById('fine-start-display-text').classList.add('text-gray-400');
+             document.getElementById('fine-end-display-text').textContent = '結束日期';
+            document.getElementById('fine-end-display-text').classList.add('text-gray-400');
+            
+            // Reset tasks (keep 1)
+            const taskContainer = document.getElementById('task-inputs');
+            taskContainer.innerHTML = '';
+             window.addTaskRow(); // Add one back
+             
+             // Uncheck users
+             document.querySelectorAll('.fine-user-check').forEach(cb => cb.checked = false);
+             
+             // Close toggle
+             window.toggleFineForm();
         };
 
         window.loadFineDashboard = function() {
