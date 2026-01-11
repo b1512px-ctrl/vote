@@ -141,7 +141,10 @@
             <div id="vote-detail-view" class="hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 id="current-vote-title" class="text-2xl font-bold text-gray-800"></h2>
-                    <button onclick="loadVoteDashboard()" class="text-blue-600 underline text-sm">回列表</button>
+                    <!-- 修正：使用 window.loadVoteDashboard 並美化按鈕 -->
+                    <button onclick="window.loadVoteDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
+                    </button>
                 </div>
 
                 <!-- 新增選項 -->
@@ -234,7 +237,10 @@
                         <h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2>
                         <p id="fd-dates" class="text-sm text-gray-500"></p>
                     </div>
-                    <button onclick="loadFineDashboard()" class="text-blue-600 underline">回列表</button>
+                    <!-- 修正：使用 window.loadFineDashboard 並美化按鈕 -->
+                    <button onclick="window.loadFineDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
+                    </button>
                 </div>
 
                 <!-- 今日打卡區 -->
@@ -479,7 +485,7 @@
         function initVoteApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('vote-app-container').classList.remove('hidden');
-            // FIX: Removed faulty user-display update
+            // 修正：移除了設置 user-display 的程式碼，因為該元素在投票頁面不存在
             
             // Setup UI based on role
             const header = document.getElementById('vote-header');
@@ -546,7 +552,7 @@
             } catch(e) { console.error(e); }
         }
 
-        function loadVoteDashboard() {
+        window.loadVoteDashboard = function() {
             document.getElementById('vote-dashboard-view').classList.remove('hidden');
             document.getElementById('vote-detail-view').classList.add('hidden');
             if(unsubVotes) unsubVotes();
@@ -663,7 +669,7 @@
                 createCard.classList.add('hidden');
             }
             
-            loadFineDashboard();
+            window.loadFineDashboard();
         }
 
         async function loadUserListForFine() {
@@ -683,6 +689,30 @@
                 });
             } catch (e) { list.innerHTML = '讀取失敗'; }
         }
+        
+        window.manualAddUser = async () => {
+            const name = document.getElementById('manual-user-name').value.trim();
+            let uid = document.getElementById('manual-user-uid').value.trim();
+            
+            if(!name) return alert('請輸入姓名');
+            if(!uid) {
+                uid = 'manual_' + Date.now();
+            }
+            
+            try {
+                await setDoc(getDocRef('users', uid), {
+                    name: name,
+                    role: 'Manual',
+                    createdAt: serverTimestamp()
+                }, { merge: true });
+                
+                document.getElementById('manual-user-name').value = '';
+                document.getElementById('manual-user-uid').value = '';
+                alert('已加入');
+            } catch(e) {
+                alert('加入失敗: ' + e.message);
+            }
+        };
 
         // Add task row dynamic
         window.addTaskRow = () => {
@@ -724,7 +754,7 @@
             // reset form...
         };
 
-        function loadFineDashboard() {
+        window.loadFineDashboard = function() {
             document.getElementById('fine-dashboard-view').classList.remove('hidden');
             document.getElementById('fine-detail-view').classList.add('hidden');
             if(unsubFineRecords) unsubFineRecords();
