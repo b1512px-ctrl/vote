@@ -211,16 +211,20 @@
                             </div>
                         </div>
                         
-                        <!-- 任務設定 -->
+                        <!-- 任務設定 (修正：手機版改為上下排列，電腦版左右) -->
                         <div class="mb-4 p-3 bg-gray-50 rounded border">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
-                            <div id="task-inputs" class="space-y-2">
-                                <div class="flex gap-2 task-row">
-                                    <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 flex-1 task-name">
-                                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 w-24 task-fine">
+                            <div id="task-inputs" class="space-y-3">
+                                <!-- JS 動態生成的 task-row 也會套用此結構 -->
+                                <div class="flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0">
+                                    <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
+                                    <div class="flex gap-2">
+                                        <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
+                                        <!-- 預設第一行不給刪除按鈕，或透過 JS 統一管理 -->
+                                    </div>
                                 </div>
                             </div>
-                            <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-2 hover:underline"><i class="fa-solid fa-plus"></i> 增加任務</button>
+                            <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-3 hover:underline flex items-center"><i class="fa-solid fa-plus mr-1"></i> 增加任務</button>
                         </div>
 
                         <!-- 人員選擇 -->
@@ -231,23 +235,25 @@
                             </div>
                             <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
                             
-                            <!-- 手動加入人員 -->
+                            <!-- 手動加入人員 (修正：手機版上下排列) -->
                             <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
                                 <p class="text-xs font-bold text-gray-600 mb-1">找不到人？手動補登</p>
-                                <div class="flex gap-2">
-                                    <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-1/3">
-                                    <input type="text" id="manual-user-uid" placeholder="UID" class="border rounded px-2 py-1 text-sm flex-1">
-                                    <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700">加入</button>
+                                <div class="flex flex-col sm:flex-row gap-2">
+                                    <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-full sm:w-1/3">
+                                    <div class="flex gap-2 w-full sm:flex-1">
+                                        <input type="text" id="manual-user-uid" placeholder="UID (在Firebase Authentication查看)" class="border rounded px-2 py-1 text-sm flex-1">
+                                        <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 whitespace-nowrap">加入</button>
+                                    </div>
                                 </div>
+                                <p class="text-[10px] text-gray-400 mt-1">注意：若不填寫 UID，系統會隨機生成，但該使用者將無法登入打卡。</p>
                             </div>
                         </div>
 
-                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
+                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full transition-colors shadow-sm">建立活動</button>
                     </div>
                 </div>
 
                 <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">進行中的任務</h2></div>
-                <!-- 修改：grid-cols-1 md:grid-cols-2 gap-4 (雙欄排版) -->
                 <div id="fine-events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
 
@@ -258,7 +264,6 @@
                         <h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2>
                         <p id="fd-dates" class="text-sm text-gray-500"></p>
                     </div>
-                    <!-- 修正：使用 window.loadFineDashboard 並美化按鈕 -->
                     <button onclick="window.loadFineDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
                         <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
                     </button>
@@ -745,11 +750,14 @@
         // Add task row dynamic
         window.addTaskRow = () => {
             const div = document.createElement('div');
-            div.className = "flex gap-2 task-row";
+            // 手機版使用 flex-col 垂直排列，大螢幕使用 sm:flex-row 水平排列
+            div.className = "flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0";
             div.innerHTML = `
-                <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 flex-1 task-name">
-                <input type="number" placeholder="$" class="border rounded px-3 py-1 w-24 task-fine">
-                <button onclick="this.parentElement.remove()" class="text-red-500"><i class="fa-solid fa-xmark"></i></button>
+                <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
+                <div class="flex gap-2">
+                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
+                    <button onclick="this.closest('.task-row').remove()" class="text-red-500 px-2"><i class="fa-solid fa-xmark"></i></button>
+                </div>
             `;
             document.getElementById('task-inputs').appendChild(div);
         };
@@ -952,11 +960,11 @@
 
             // Build Table Header
             const thead = document.getElementById('stats-header');
-            let headerHTML = '<th class="px-4 py-3 bg-gray-50">姓名</th>';
+            let headerHTML = '<th class="px-4 py-3 bg-gray-50 whitespace-nowrap">姓名</th>';
             currentFineEvent.tasks.forEach(t => {
-                headerHTML += `<th class="px-4 py-3 text-center bg-gray-50 text-red-600">${t.name}<br><span class="text-xs">未完成</span></th>`;
+                headerHTML += `<th class="px-4 py-3 text-center bg-gray-50 text-red-600 whitespace-nowrap">${t.name}<br><span class="text-xs">未完成</span></th>`;
             });
-            headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold">總罰金</th>';
+            headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold whitespace-nowrap">總罰金</th>';
             thead.innerHTML = headerHTML;
 
             // Build Body
@@ -965,7 +973,7 @@
             
             currentFineEvent.participants.forEach(p => {
                 const userRecs = recordsMap[p.uid] || {};
-                let rowHTML = `<td class="px-4 py-3 font-medium text-gray-900 border-b">${p.name}</td>`;
+                let rowHTML = `<td class="px-4 py-3 font-medium text-gray-900 border-b whitespace-nowrap">${p.name}</td>`;
                 let totalFine = 0;
 
                 currentFineEvent.tasks.forEach(t => {
@@ -976,10 +984,10 @@
                     });
                     const fine = missCount * t.amount;
                     totalFine += fine;
-                    rowHTML += `<td class="px-4 py-3 text-center border-b text-gray-600">${missCount} <span class="text-xs text-gray-400">($${fine})</span></td>`;
+                    rowHTML += `<td class="px-4 py-3 text-center border-b text-gray-600 whitespace-nowrap">${missCount} <span class="text-xs text-gray-400">($${fine})</span></td>`;
                 });
                 
-                rowHTML += `<td class="px-4 py-3 text-right border-b font-bold text-red-600">$${totalFine}</td>`;
+                rowHTML += `<td class="px-4 py-3 text-right border-b font-bold text-red-600 whitespace-nowrap">$${totalFine}</td>`;
                 tbody.innerHTML += `<tr>${rowHTML}</tr>`;
             });
         }
