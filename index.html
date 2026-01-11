@@ -3,22 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多人活動投票平台 (資安強化版)</title>
+    <title>多人活動平台 (整合版)</title>
     
-    <!-- 修正：攔截 Tailwind CDN 的生產環境警告訊息 -->
     <script>
         (function() {
             const originalWarn = console.warn;
             console.warn = function(...args) {
                 if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
-                    return; // 忽略此特定警告
+                    return; 
                 }
                 originalWarn.apply(console, args);
             };
         })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -28,40 +26,30 @@
         ::-webkit-scrollbar-thumb:hover { background: #555; }
         .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .vote-card { transition: all 0.3s ease; }
-        .vote-card:hover { transform: translateY(-2px); }
-        .event-card { transition: all 0.2s ease; }
-        .event-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .vote-card, .event-card { transition: all 0.2s ease; }
+        .vote-card:hover, .event-card:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         #welcome-modal { background-image: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); }
         
-        /* 開關樣式 */
-        .toggle-checkbox:checked {
-            right: 0;
-            border-color: #4F46E5;
-        }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: #4F46E5;
-        }
+        .toggle-checkbox:checked { right: 0; border-color: #4F46E5; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #4F46E5; }
+        
+        /* 表格響應式優化 */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
 
-    <!-- 1. 登入/角色選擇畫面 -->
+    <!-- 1. 登入畫面 -->
     <div id="welcome-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center relative transition-all duration-300">
-            <div class="mb-6 text-gray-800">
-                <i class="fa-solid fa-users-gear text-5xl"></i>
-            </div>
+            <div class="mb-6 text-gray-800"><i class="fa-solid fa-users-gear text-5xl"></i></div>
             <h2 class="text-2xl font-bold text-gray-800 mb-2">身分驗證</h2>
             <p class="text-gray-500 mb-6 text-sm">請選擇您的登入身分</p>
             
-            <!-- Step 0: 角色選擇 -->
             <div id="role-select-step" class="space-y-3">
-                <!-- 管理員改為藍色 -->
                 <button onclick="selectRole('admin')" class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-3 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
                     <i class="fa-solid fa-shield-halved"></i> 管理員
                 </button>
-                <!-- 成員改為黑色 -->
                 <button onclick="selectRole('member')" class="w-full bg-gray-900 hover:bg-black text-white font-bold py-3 rounded-lg shadow-md transition-colors flex items-center justify-center gap-2">
                     <i class="fa-solid fa-user-check"></i> 成員
                 </button>
@@ -70,74 +58,64 @@
                 </button>
             </div>
 
-            <!-- Step 1: 輸入資料 (共用介面) -->
             <div id="login-input-step" class="space-y-4 hidden">
                 <div id="role-badge" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2"></div>
-                
                 <input type="text" id="login-name-input" placeholder="請輸入暱稱" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-800 focus:outline-none text-center text-lg">
-                
-                <!-- 密碼欄位 (訪客不顯示) -->
                 <input type="password" id="login-pwd-input" placeholder="請輸入密碼" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-800 focus:outline-none text-center text-lg hidden">
-                
                 <div class="flex gap-2">
                     <button onclick="resetLogin()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 rounded-lg">返回</button>
                     <button id="login-submit-btn" class="flex-1 bg-blue-800 hover:bg-blue-900 text-white font-bold py-3 rounded-lg shadow-lg">進入</button>
                 </div>
             </div>
-            
             <p id="login-msg" class="mt-4 text-xs text-red-500 min-h-[1rem]"></p>
         </div>
     </div>
 
-    <!-- 2. 主程式 (Dashboard + Voting) -->
-    <div id="app-container" class="hidden min-h-screen pb-10">
-        
-        <!-- Navbar -->
-        <header id="main-header" class="bg-gray-800 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300">
-            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-                <div>
-                    <h1 class="text-xl font-bold flex items-center gap-2">
-                        <i id="header-icon" class="fa-solid fa-users"></i>
-                        <span id="header-title">活動大廳</span>
-                    </h1>
-                    <div class="flex items-center text-gray-300 text-xs mt-1 gap-2">
-                        <span id="user-display"></span>
-                        <button id="logout-btn" class="underline hover:text-white bg-white/10 px-2 py-0.5 rounded ml-2">登出</button>
-                    </div>
-                </div>
-                <button id="back-btn" class="hidden text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors">
-                    <i class="fa-solid fa-chevron-left mr-1"></i> 回列表
-                </button>
+    <!-- 2. 主選單 (登入後顯示) -->
+    <div id="main-menu-container" class="hidden min-h-screen flex flex-col">
+        <header class="bg-gray-800 text-white shadow-lg p-4 flex justify-between items-center">
+            <h1 class="text-xl font-bold"><i class="fa-solid fa-bars mr-2"></i>功能選單</h1>
+            <div class="text-xs">
+                <span id="menu-user-display"></span>
+                <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-
-        <main class="max-w-4xl mx-auto px-4 py-6">
-            
-            <!-- 設定與權限警告 -->
-            <div id="config-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
-                <p class="font-bold">設定尚未完成</p>
-                <p>請填入 Firebase Config。</p>
+        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-6 content-center">
+            <div onclick="switchApp('vote')" class="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
+                <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">投票功能</h2>
+                <p class="text-gray-500">發起聚餐、活動日期投票，即時統計參加人數。</p>
             </div>
+            <div onclick="switchApp('fine')" class="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-red-500 transition-all group">
+                <div class="text-red-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-gavel"></i></div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
+                <p class="text-gray-500">追蹤活動任務執行狀況，自動計算未完成罰款。</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- 3. 投票功能 (Voting App) -->
+    <div id="vote-app-container" class="hidden min-h-screen pb-10">
+        <header id="vote-header" class="bg-gray-800 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300">
+            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-users"></i><span id="vote-header-title">活動大廳</span></h1>
+                <button onclick="backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
+            </div>
+        </header>
+        
+        <main class="max-w-4xl mx-auto px-4 py-6">
+            <!-- 設定與權限警告 -->
             <div id="permission-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
                 <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足</p>
-                <p id="permission-msg" class="text-sm">操作被拒絕。請確認 Firebase Firestore Rules 是否已允許成員 (Member) 權限。</p>
+                <p class="text-sm">操作被拒絕。請確認權限或 Firestore Rules。</p>
             </div>
 
-            <!-- VIEW: Dashboard -->
-            <div id="dashboard-view">
-                
-                <!-- 柱專用：系統設定區塊 -->
+            <!-- Vote Dashboard -->
+            <div id="vote-dashboard-view">
+                <!-- 柱專用設定 -->
                 <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
                     <div class="flex justify-between items-center">
-                        <div class="flex items-center">
-                            <i class="fa-solid fa-gears text-indigo-600 text-xl mr-3"></i>
-                            <div>
-                                <h3 class="font-bold text-gray-800">系統管理 (柱專用)</h3>
-                                <p class="text-xs text-gray-500">控制成員註冊權限</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Toggle Switch -->
+                        <div class="flex items-center"><i class="fa-solid fa-gears text-indigo-600 text-xl mr-3"></i><div><h3 class="font-bold text-gray-800">系統管理</h3><p class="text-xs text-gray-500">成員註冊開關</p></div></div>
                         <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
                             <input type="checkbox" name="toggle" id="reg-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
                             <label for="reg-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
@@ -146,79 +124,145 @@
                     <p id="reg-status-text" class="text-right text-xs mt-1 text-gray-500">讀取中...</p>
                 </div>
 
-                <!-- 發起活動 (管理員 + 成員 可見) -->
+                <!-- 建立活動 -->
                 <div id="create-event-section" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 hidden">
                     <h2 class="text-lg font-semibold mb-4 text-gray-700">發起新活動</h2>
                     <div class="flex flex-col md:flex-row gap-3">
                         <input type="text" id="new-event-title" placeholder="活動主題..." class="flex-1 border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <button id="create-event-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors">建立</button>
+                        <button id="create-event-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap">建立</button>
                     </div>
                 </div>
 
-                <div class="mb-4 flex justify-between items-end">
-                    <h2 class="text-xl font-bold text-gray-800">活動列表</h2>
-                    <span class="text-sm text-gray-500">最新 20 筆</span>
-                </div>
-                
-                <div id="events-loader" class="flex justify-center py-10"><div class="loader"></div></div>
+                <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">活動列表</h2></div>
                 <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                <div id="no-events-msg" class="hidden text-center py-12 text-gray-400 border border-dashed rounded-xl">目前沒有活動</div>
             </div>
 
-            <!-- VIEW: Voting -->
-            <div id="voting-view" class="hidden">
-                <h2 id="current-event-title" class="text-2xl font-bold mb-4 text-gray-800"></h2>
+            <!-- Vote Detail -->
+            <div id="vote-detail-view" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 id="current-vote-title" class="text-2xl font-bold text-gray-800"></h2>
+                    <button onclick="loadVoteDashboard()" class="text-blue-600 underline text-sm">回列表</button>
+                </div>
 
-                <!-- 新增選項 (共用區塊：管理員與成員共用) -->
+                <!-- 新增選項 -->
                 <div id="create-vote-section" class="bg-white rounded-xl shadow-md p-4 mb-6 border hidden">
-                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold" id="cv-header-text">
-                        <i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項
-                    </div>
+                    <div class="flex items-center mb-2 text-gray-800 text-sm font-bold" id="cv-header-text"><i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項</div>
                     <div class="flex flex-col md:flex-row gap-2">
-                        <!-- 自定義日期選擇器 -->
-                        <!-- 外層 div 加入 onclick 觸發 showPicker，input 設為 pointer-events-none 以解決手機點擊問題 -->
                         <div class="relative flex-1 group cursor-pointer" onclick="try{document.getElementById('new-vote-date').showPicker()}catch(e){document.getElementById('new-vote-date').focus()}">
-                            <!-- 隱藏的原生 Input -->
                             <input type="date" id="new-vote-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
-                            <!-- 顯示用的 Div -->
                             <div id="date-display-box" class="w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300">
-                                <span id="date-display-text" class="text-gray-400 text-sm select-none">年/月/日</span>
-                                <i class="fa-regular fa-calendar text-gray-500"></i>
+                                <span id="date-display-text" class="text-gray-400 text-sm select-none">年/月/日</span><i class="fa-regular fa-calendar text-gray-500"></i>
                             </div>
                         </div>
-                        
                         <input type="text" id="new-vote-note" placeholder="備註 (例: 午餐)" class="flex-1 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500">
-                        <button id="add-vote-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors">新增</button>
+                        <button id="add-vote-btn" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">新增</button>
                     </div>
                 </div>
 
-                <!-- 訪客唯讀提示 -->
-                <div id="guest-hint" class="bg-gray-100 text-gray-600 p-3 rounded-lg mb-6 text-center text-sm border border-gray-200 hidden">
-                    <i class="fa-solid fa-eye mr-1"></i> 您目前處於訪客模式，僅供瀏覽投票結果
+                <div id="guest-hint" class="bg-gray-100 text-gray-600 p-3 rounded-lg mb-6 text-center text-sm border hidden"><i class="fa-solid fa-eye mr-1"></i> 訪客模式 (唯讀)</div>
+                <div id="vote-list" class="space-y-3"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 4. 罰款統計功能 (Fine App) -->
+    <div id="fine-app-container" class="hidden min-h-screen pb-10">
+        <header class="bg-red-800 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-gavel"></i>罰款統計</h1>
+                <button onclick="backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
+            </div>
+        </header>
+
+        <main class="max-w-5xl mx-auto px-4 py-6">
+            <!-- 罰款儀表板 -->
+            <div id="fine-dashboard-view">
+                <!-- 管理員：建立罰款活動 -->
+                <div id="create-fine-event-card" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 border-red-500 hidden">
+                    <h2 class="text-lg font-semibold mb-4 text-gray-700">建立新活動任務</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="fine-title" placeholder="活動名稱 (例: 1月健身挑戰)" class="border rounded px-3 py-2 w-full">
+                        <div class="flex gap-2">
+                            <input type="date" id="fine-start" class="border rounded px-3 py-2 w-1/2" title="開始日期">
+                            <input type="date" id="fine-end" class="border rounded px-3 py-2 w-1/2" title="結束日期">
+                        </div>
+                    </div>
+                    
+                    <!-- 任務設定 -->
+                    <div class="mb-4 p-3 bg-gray-50 rounded border">
+                        <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
+                        <div id="task-inputs" class="space-y-2">
+                            <div class="flex gap-2 task-row">
+                                <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 flex-1 task-name">
+                                <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 w-24 task-fine">
+                            </div>
+                        </div>
+                        <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-2 hover:underline"><i class="fa-solid fa-plus"></i> 增加任務</button>
+                    </div>
+
+                    <!-- 人員選擇 -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
+                        <div id="user-select-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto border p-2 rounded bg-white">
+                            <p class="text-xs text-gray-400 col-span-full">載入中...</p>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
+                    </div>
+
+                    <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
                 </div>
 
-                <div id="voting-loader" class="flex justify-center py-10 hidden"><div class="loader"></div></div>
-                <div id="vote-list" class="space-y-3"></div>
-                <div id="voting-empty-msg" class="hidden text-center py-10 text-gray-400">尚無選項</div>
+                <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">進行中的任務</h2></div>
+                <div id="fine-events-list" class="grid grid-cols-1 gap-4"></div>
             </div>
 
+            <!-- 罰款詳情 (打卡 + 報表) -->
+            <div id="fine-detail-view" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2>
+                        <p id="fd-dates" class="text-sm text-gray-500"></p>
+                    </div>
+                    <button onclick="loadFineDashboard()" class="text-blue-600 underline">回列表</button>
+                </div>
+
+                <!-- 今日打卡區 -->
+                <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-green-100">
+                    <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center">
+                        <i class="fa-solid fa-calendar-check text-green-600 mr-2"></i> 
+                        今日打卡 (<span id="today-date-str"></span>)
+                    </h3>
+                    <div id="daily-check-area" class="space-y-3">
+                        <p class="text-gray-400">載入中...</p>
+                    </div>
+                </div>
+
+                <!-- 統計報表 -->
+                <div class="bg-white rounded-xl shadow-md p-6 overflow-hidden">
+                    <h3 class="text-lg font-bold text-gray-700 mb-4"><i class="fa-solid fa-table mr-2"></i>罰款統計表</h3>
+                    <div class="table-responsive">
+                        <table class="w-full text-sm text-left border-collapse">
+                            <thead class="bg-gray-100 text-gray-600 uppercase">
+                                <tr id="stats-header"></tr>
+                            </thead>
+                            <tbody id="stats-body" class="divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where, limit, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================
-        //  ⚠️ 設定區域：請填入您的 Firebase Config
-        // ==========================================
+        // Config
         let firebaseConfig;
         try { if (typeof __firebase_config !== 'undefined') firebaseConfig = JSON.parse(__firebase_config); } catch (e) {}
-
         if (!firebaseConfig) {
             firebaseConfig = {
-                // ⚠️ 請替換成您的設定 ⚠️
                 apiKey: "AIzaSyDQiHjNozV07Q8y6XtqGSAMcCnOEaGhPqM",
   				authDomain: "vote-7e8d0.firebaseapp.com",
   				projectId: "vote-7e8d0",
@@ -229,12 +273,11 @@
             };
         }
 
-        // --- Init ---
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // --- State ---
+        // State
         const ADMIN_LIST = ['ELLY LIN', 'Ling', 'Luna', '柱'];
         const SUPER_ADMIN = '柱';
         
@@ -242,50 +285,47 @@
         let isAdmin = false;
         let isMember = false;
         let selectedRole = null; 
-        
-        let currentEventId = null;
-        let unsubEvents = null;
-        let unsubVotes = null;
+        let displayName = '';
 
-        // --- DOM Elements ---
-        const roleSelectStep = document.getElementById('role-select-step');
-        const loginInputStep = document.getElementById('login-input-step');
-        const roleBadge = document.getElementById('role-badge');
-        const loginNameInput = document.getElementById('login-name-input');
-        const loginPwdInput = document.getElementById('login-pwd-input');
-        const loginMsg = document.getElementById('login-msg');
-        
-        const superAdminSettings = document.getElementById('super-admin-settings');
-        const regToggle = document.getElementById('reg-toggle');
-        const regStatusText = document.getElementById('reg-status-text');
-        
-        // Date Picker Elements
-        const newVoteDateInput = document.getElementById('new-vote-date');
-        const dateDisplayText = document.getElementById('date-display-text');
+        // Helper: Get Collection Path
+        function getColRef(colName) {
+            const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
+            if (typeof __app_id !== 'undefined') {
+                return collection(db, 'artifacts', appIdStr, 'public', 'data', colName);
+            }
+            return collection(db, colName);
+        }
+        function getDocRef(colName, docId) {
+            const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
+            if (typeof __app_id !== 'undefined') {
+                return doc(db, 'artifacts', appIdStr, 'public', 'data', colName, docId);
+            }
+            return doc(db, colName, docId);
+        }
 
-        // 1. 初始化檢查
-        onAuthStateChanged(auth, (user) => {
+        // --- AUTH & INIT ---
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 currentUser = user;
                 checkUserPermissions(user);
-                showAppUI();
+                
+                // 恢復顯示名稱
+                displayName = sessionStorage.getItem('display_name');
+                if (!displayName && user.email) displayName = user.email.split('@')[0].replace('_', ' ').toUpperCase();
+                if (!displayName) displayName = 'Guest';
+
+                // 同步使用者資料到 users 集合 (供下拉選單用)
+                if (isAdmin || isMember) {
+                    await setDoc(getDocRef('users', user.uid), {
+                        name: displayName,
+                        role: isAdmin ? 'Admin' : 'Member',
+                        lastLogin: serverTimestamp()
+                    }, { merge: true });
+                }
+
+                showMenuUI();
             } else {
                 showLoginUI();
-            }
-        });
-
-        // 2. 日期選擇器邏輯 (Custom Date Picker)
-        newVoteDateInput.addEventListener('change', function() {
-            if (this.value) {
-                // 將 yyyy-mm-dd 轉為 yyyy/mm/dd
-                const formattedDate = this.value.replace(/-/g, '/');
-                dateDisplayText.textContent = formattedDate;
-                dateDisplayText.classList.remove('text-gray-400');
-                dateDisplayText.classList.add('text-gray-800');
-            } else {
-                dateDisplayText.textContent = '年/月/日';
-                dateDisplayText.classList.add('text-gray-400');
-                dateDisplayText.classList.remove('text-gray-800');
             }
         });
 
@@ -295,490 +335,547 @@
             isMember = email.endsWith('@member.com');
         }
 
-        // --- 登入 UI ---
-        
+        // --- LOGIN UI ---
         window.selectRole = (role) => {
             selectedRole = role;
-            roleSelectStep.classList.add('hidden');
-            loginInputStep.classList.remove('hidden');
+            document.getElementById('role-select-step').classList.add('hidden');
+            document.getElementById('login-input-step').classList.remove('hidden');
             
-            loginNameInput.value = '';
-            loginPwdInput.value = '';
-            loginMsg.textContent = '';
+            const badge = document.getElementById('role-badge');
+            const pwdInput = document.getElementById('login-pwd-input');
+            const nameInput = document.getElementById('login-name-input');
+            
+            nameInput.value = ''; pwdInput.value = '';
             
             if (role === 'admin') {
-                roleBadge.textContent = '管理員登入';
-                roleBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-blue-100 text-blue-800';
-                loginPwdInput.classList.remove('hidden');
+                badge.textContent = '管理員登入'; badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-blue-100 text-blue-800';
+                pwdInput.classList.remove('hidden');
             } else if (role === 'member') {
-                roleBadge.textContent = '成員登入';
-                roleBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-gray-200 text-gray-900';
-                loginPwdInput.classList.remove('hidden');
+                badge.textContent = '成員登入'; badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-gray-200 text-gray-900';
+                pwdInput.classList.remove('hidden');
             } else {
-                roleBadge.textContent = '訪客預覽';
-                roleBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-gray-200 text-gray-500';
-                loginPwdInput.classList.add('hidden');
+                badge.textContent = '訪客預覽'; badge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold mb-2 bg-gray-200 text-gray-500';
+                pwdInput.classList.add('hidden');
             }
         };
 
         window.resetLogin = () => {
-            loginInputStep.classList.add('hidden');
-            roleSelectStep.classList.remove('hidden');
+            document.getElementById('login-input-step').classList.add('hidden');
+            document.getElementById('role-select-step').classList.remove('hidden');
             selectedRole = null;
         };
 
         document.getElementById('login-submit-btn').onclick = () => {
-            const name = loginNameInput.value.trim();
+            const name = document.getElementById('login-name-input').value.trim();
             if (!name) return;
             
             if (selectedRole === 'guest') {
                 performGuestLogin(name);
             } else {
-                const pwd = loginPwdInput.value;
-                if (!pwd) {
-                    loginMsg.textContent = '請輸入密碼';
-                    return;
-                }
+                const pwd = document.getElementById('login-pwd-input').value;
+                if (!pwd) return alert('請輸入密碼');
                 
                 if (selectedRole === 'admin') {
-                    const matchedAdmin = ADMIN_LIST.find(a => a.toLowerCase() === name.toLowerCase());
-                    if (!matchedAdmin) {
-                        loginMsg.textContent = '此名稱非管理員';
-                        return;
-                    }
-                    performAuthLogin(matchedAdmin, pwd, 'admin.com');
-                } else if (selectedRole === 'member') {
+                    const matched = ADMIN_LIST.find(a => a.toLowerCase() === name.toLowerCase());
+                    if (!matched) return alert('此名稱非管理員');
+                    performAuthLogin(matched, pwd, 'admin.com');
+                } else {
                     performAuthLogin(name, pwd, 'member.com');
                 }
             }
         };
 
         async function performGuestLogin(name) {
-            loginMsg.textContent = '登入中...';
             try {
                 sessionStorage.setItem('display_name', name);
                 await signInAnonymously(auth);
-            } catch (error) {
-                sessionStorage.removeItem('display_name');
-                loginMsg.textContent = '登入失敗: ' + error.message;
-            }
+            } catch (e) { alert(e.message); }
         }
 
         async function performAuthLogin(name, pwd, domain) {
-            loginMsg.textContent = '驗證中...';
             const email = name.toLowerCase().replace(/\s+/g, '_') + '@' + domain;
-            
             try {
                 await signInWithEmailAndPassword(auth, email, pwd);
-                sessionStorage.setItem('display_name', name); 
-            } catch (error) {
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+                sessionStorage.setItem('display_name', name);
+            } catch (e) {
+                if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
                     if (domain === 'member.com') {
+                        // Check registration setting
                         try {
-                            const isOpen = await checkRegistrationOpen();
-                            if (!isOpen) {
-                                loginMsg.textContent = '目前暫停開放新成員註冊';
-                                return;
+                            const snap = await getDoc(getDocRef('events', 'system_settings'));
+                            if (snap.exists() && snap.data().memberRegistrationOpen === false) {
+                                return alert('目前暫停開放新成員註冊');
                             }
-                        } catch (checkErr) {
-                            console.error(checkErr);
-                        }
+                        } catch(err){}
                     }
-
                     try {
                         await createUserWithEmailAndPassword(auth, email, pwd);
                         sessionStorage.setItem('display_name', name);
-                    } catch (regError) {
-                        if (regError.code === 'auth/email-already-in-use') {
-                             loginMsg.textContent = '登入失敗: 密碼錯誤';
-                        } else {
-                             loginMsg.textContent = '註冊失敗: ' + regError.message;
-                        }
-                    }
-                } else {
-                    loginMsg.textContent = '登入失敗: ' + error.message;
-                }
+                    } catch (regE) { alert('註冊/登入失敗: ' + regE.message); }
+                } else { alert('登入失敗: ' + e.message); }
             }
         }
 
-        document.getElementById('logout-btn').onclick = () => {
-            if(confirm('確定要登出嗎？')) {
+        document.getElementById('menu-logout-btn').onclick = () => {
+            if(confirm('登出?')) {
                 sessionStorage.removeItem('display_name');
                 signOut(auth);
             }
         };
 
-        // --- Settings Logic (Moved Before usage in showAppUI) ---
-        function getSettingsDocRef() {
-            const appIdStr = (typeof __app_id !== 'undefined') ? __app_id : 'default';
-            if (typeof __app_id !== 'undefined') {
-                return doc(db, 'artifacts', appIdStr, 'public', 'data', 'events', 'system_settings');
-            } else {
-                return doc(db, 'events', 'system_settings');
-            }
-        }
-
-        async function checkRegistrationOpen() {
-            try {
-                const docSnap = await getDoc(getSettingsDocRef());
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    return data.memberRegistrationOpen !== false; 
-                }
-                return true; 
-            } catch (e) {
-                console.error("Check setting failed:", e);
-                return true; 
-            }
-        }
-
-        async function initSettingsToggle() {
-            regStatusText.textContent = "讀取中...";
-            try {
-                const docRef = getSettingsDocRef();
-                const docSnap = await getDoc(docRef);
-                let isOpen = true;
-                if (docSnap.exists()) {
-                    isOpen = docSnap.data().memberRegistrationOpen !== false;
-                }
-                regToggle.checked = isOpen;
-                updateStatusText(isOpen);
-                
-                regToggle.onchange = async () => {
-                    const newState = regToggle.checked;
-                    updateStatusText(newState);
-                    await setDoc(docRef, { memberRegistrationOpen: newState }, { merge: true });
-                };
-            } catch (e) {
-                console.error("Setting init failed", e);
-                regStatusText.textContent = "設定讀取失敗";
-            }
-        }
-
-        function updateStatusText(isOpen) {
-            regStatusText.textContent = isOpen ? "成員註冊：已開放" : "成員註冊：已關閉";
-            regStatusText.className = isOpen ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
-        }
-
-        // --- UI Update Logic ---
-
         function showLoginUI() {
-            if (unsubEvents) { unsubEvents(); unsubEvents = null; }
-            if (unsubVotes) { unsubVotes(); unsubVotes = null; }
-            
             document.getElementById('welcome-modal').classList.remove('hidden');
-            document.getElementById('app-container').classList.add('hidden');
-            
+            document.getElementById('main-menu-container').classList.add('hidden');
+            document.getElementById('vote-app-container').classList.add('hidden');
+            document.getElementById('fine-app-container').classList.add('hidden');
             window.resetLogin();
         }
 
-        async function showAppUI() {
+        // --- MENU & NAVIGATION ---
+        function showMenuUI() {
             document.getElementById('welcome-modal').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('main-menu-container').classList.remove('hidden');
+            document.getElementById('vote-app-container').classList.add('hidden');
+            document.getElementById('fine-app-container').classList.add('hidden');
             
-            let displayName = sessionStorage.getItem('display_name');
-            if (!displayName && currentUser.email) {
-                displayName = currentUser.email.split('@')[0].replace('_', ' ').toUpperCase();
+            const roleStr = isAdmin ? '管理員' : (isMember ? '成員' : '訪客');
+            document.getElementById('menu-user-display').textContent = `${roleStr}: ${displayName}`;
+        }
+
+        window.switchApp = (appName) => {
+            if (appName === 'vote') {
+                initVoteApp();
+            } else if (appName === 'fine') {
+                if (!isAdmin && !isMember) return alert("權限不足: 訪客無法進入罰款統計");
+                initFineApp();
             }
-            if (!displayName) displayName = 'Guest';
+        };
+
+        window.backToMenu = () => {
+            // cleanup listeners
+            if (unsubEvents) unsubEvents();
+            if (unsubVotes) unsubVotes();
+            if (unsubFineEvents) unsubFineEvents();
+            showMenuUI();
+        };
+
+        // ============================
+        //  VOTE APP LOGIC (Simplified)
+        // ============================
+        let unsubEvents = null, unsubVotes = null, currentVoteEventId = null;
+
+        function initVoteApp() {
+            document.getElementById('main-menu-container').classList.add('hidden');
+            document.getElementById('vote-app-container').classList.remove('hidden');
+            document.getElementById('user-display').textContent = document.getElementById('menu-user-display').textContent;
             
-            let roleText = '訪客';
-            if (isAdmin) roleText = '管理員';
-            else if (isMember) roleText = '成員';
-            
-            document.getElementById('user-display').textContent = `${roleText}: ${displayName}`;
-            
-            const header = document.getElementById('main-header');
-            const createEventSection = document.getElementById('create-event-section');
-            const createVoteSection = document.getElementById('create-vote-section'); // 共用區塊
+            // Setup UI based on role
+            const header = document.getElementById('vote-header');
+            const createSec = document.getElementById('create-event-section');
+            const createVoteSec = document.getElementById('create-vote-section');
             const guestHint = document.getElementById('guest-hint');
-            const createEventBtn = document.getElementById('create-event-btn');
+            const createBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
-            const cvHeaderText = document.getElementById('cv-header-text');
-            const dateDisplayBox = document.getElementById('date-display-box');
+            const cvHeader = document.getElementById('cv-header-text');
+            const settings = document.getElementById('super-admin-settings');
 
             if (isAdmin) {
-                // 管理員：藍色系
-                header.classList.remove('bg-gray-800', 'bg-yellow-700');
-                header.classList.add('bg-blue-700');
-                
-                createEventBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
+                header.className = "bg-blue-700 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
+                createBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
-                
-                // 動態設定樣式 (合併後的區塊)
-                createEventSection.classList.remove('hidden');
-                createVoteSection.classList.remove('hidden');
-                
-                createEventSection.classList.remove('border-gray-800');
-                createEventSection.classList.add('border-blue-500');
-                
-                createVoteSection.classList.remove('border-gray-800');
-                createVoteSection.classList.add('border-blue-200');
-                if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
-                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300"; // 預設邊框
-                
+                createSec.classList.remove('hidden', 'border-gray-800'); createSec.classList.add('border-blue-500');
+                createVoteSec.classList.remove('hidden', 'border-gray-800'); createVoteSec.classList.add('border-blue-200');
+                if(cvHeader) cvHeader.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
                 guestHint.classList.add('hidden');
-
+                
                 if (displayName === SUPER_ADMIN) {
-                    superAdminSettings.classList.remove('hidden');
+                    settings.classList.remove('hidden');
                     initSettingsToggle();
-                } else {
-                    superAdminSettings.classList.add('hidden');
-                }
+                } else settings.classList.add('hidden');
 
             } else if (isMember) {
-                // 成員：黑色系
-                header.classList.remove('bg-blue-700', 'bg-yellow-700');
-                header.classList.add('bg-gray-900');
-                
-                createEventBtn.className = "bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
+                header.className = "bg-gray-900 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
+                createBtn.className = "bg-gray-800 hover:bg-black text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
                 addVoteBtn.className = "bg-gray-800 hover:bg-black text-white px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-colors";
-
-                createEventSection.classList.remove('hidden');
-                createVoteSection.classList.remove('hidden');
-                
-                createEventSection.classList.remove('border-blue-500');
-                createEventSection.classList.add('border-gray-800'); 
-                
-                createVoteSection.classList.remove('border-blue-200');
-                createVoteSection.classList.add('border-gray-800');
-                if (cvHeaderText) cvHeaderText.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
-                if (dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
-                
+                createSec.classList.remove('hidden', 'border-blue-500'); createSec.classList.add('border-gray-800');
+                createVoteSec.classList.remove('hidden', 'border-blue-200'); createVoteSec.classList.add('border-gray-800');
+                if(cvHeader) cvHeader.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
                 guestHint.classList.add('hidden');
-                superAdminSettings.classList.add('hidden');
-
+                settings.classList.add('hidden');
             } else {
-                // 訪客：灰色系
-                header.classList.remove('bg-blue-700', 'bg-gray-900');
-                header.classList.add('bg-gray-600');
-                
-                createEventSection.classList.add('hidden');
-                createVoteSection.classList.add('hidden');
+                header.className = "bg-gray-600 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
+                createSec.classList.add('hidden');
+                createVoteSec.classList.add('hidden');
                 guestHint.classList.remove('hidden');
-                superAdminSettings.classList.add('hidden');
+                settings.classList.add('hidden');
             }
 
-            loadDashboard();
+            loadVoteDashboard();
         }
 
-        // --- Dashboard Logic ---
-        function loadDashboard() {
-            document.getElementById('dashboard-view').classList.remove('hidden');
-            document.getElementById('voting-view').classList.add('hidden');
-            document.getElementById('back-btn').classList.add('hidden');
-            
-            if (unsubVotes) unsubVotes();
-            if (!unsubEvents) subscribeEvents();
+        // ... [Settings Toggle Logic] same as before ...
+        async function initSettingsToggle() {
+            const status = document.getElementById('reg-status-text');
+            const toggle = document.getElementById('reg-toggle');
+            status.textContent = "讀取中...";
+            try {
+                const snap = await getDoc(getDocRef('events', 'system_settings'));
+                let open = true;
+                if (snap.exists()) open = snap.data().memberRegistrationOpen !== false;
+                toggle.checked = open;
+                status.textContent = open ? "成員註冊：已開放" : "已關閉";
+                status.className = open ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
+                toggle.onchange = async () => {
+                    const newState = toggle.checked;
+                    status.textContent = newState ? "成員註冊：已開放" : "已關閉";
+                    status.className = newState ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
+                    await setDoc(getDocRef('events', 'system_settings'), { memberRegistrationOpen: newState }, { merge: true });
+                };
+            } catch(e) { console.error(e); }
         }
 
-        function subscribeEvents() {
-            const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
-            const q = query(collection(db, collectionName), orderBy('createdAt', 'desc'), limit(20));
+        function loadVoteDashboard() {
+            document.getElementById('vote-dashboard-view').classList.remove('hidden');
+            document.getElementById('vote-detail-view').classList.add('hidden');
+            if(unsubVotes) unsubVotes();
             
-            unsubEvents = onSnapshot(q, (snapshot) => {
-                document.getElementById('events-loader').style.display = 'none';
+            const q = query(getColRef('events'), orderBy('createdAt', 'desc'), limit(20));
+            unsubEvents = onSnapshot(q, (snap) => {
                 const list = document.getElementById('events-list');
                 list.innerHTML = '';
-                
-                if (snapshot.empty) {
-                    document.getElementById('no-events-msg').classList.remove('hidden');
-                } else {
-                    document.getElementById('no-events-msg').classList.add('hidden');
-                    snapshot.forEach(doc => {
-                        if (doc.id === 'system_settings') return;
-
-                        const data = doc.data();
-                        const date = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : '剛剛';
-                        const deleteBtn = isAdmin ? `<button onclick="window.delEvent('${doc.id}', event)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 z-10 p-2"><i class="fa-solid fa-trash"></i></button>` : '';
-                        
-                        const div = document.createElement('div');
-                        div.className = "bg-white p-4 rounded-xl shadow cursor-pointer hover:bg-gray-50 relative group border border-gray-100 transition-all";
-                        div.innerHTML = `
-                            <h3 class="font-bold text-lg text-gray-800 pr-8">${data.title}</h3>
-                            <p class="text-xs text-gray-500">發起人: ${data.creator || 'User'} | ${date}</p>
-                            ${deleteBtn}
-                        `;
-                        div.onclick = () => loadVoting(doc.id, data.title);
-                        list.appendChild(div);
-                    });
-                }
-            }, handleError);
+                snap.forEach(doc => {
+                    if (doc.id === 'system_settings') return;
+                    const d = doc.data();
+                    const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString() : '';
+                    const delBtn = isAdmin ? `<button onclick="window.delEvent('${doc.id}', event)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` : '';
+                    list.innerHTML += `
+                        <div onclick="loadVoteDetail('${doc.id}', '${d.title}')" class="bg-white p-4 rounded-xl shadow hover:bg-gray-50 relative border cursor-pointer">
+                            <h3 class="font-bold text-lg">${d.title}</h3>
+                            <p class="text-xs text-gray-500">發起: ${d.creator} | ${date}</p>
+                            ${delBtn}
+                        </div>`;
+                });
+            });
         }
 
-        document.getElementById('create-event-btn').onclick = async function() {
-            if (!isAdmin && !isMember) return alert("權限不足");
-            
-            const title = document.getElementById('new-event-title').value.trim();
-            if (!title) return;
-            
-            this.disabled = true;
-            try {
-                const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
-                await addDoc(collection(db, collectionName), {
-                    title,
-                    creator: sessionStorage.getItem('display_name') || 'User',
-                    createdAt: serverTimestamp()
-                });
-                document.getElementById('new-event-title').value = '';
-            } catch (e) { handleError(e); }
-            this.disabled = false;
-        };
+        window.loadVoteDetail = (id, title) => {
+            currentVoteEventId = id;
+            document.getElementById('vote-dashboard-view').classList.add('hidden');
+            document.getElementById('vote-detail-view').classList.remove('hidden');
+            document.getElementById('current-vote-title').textContent = title;
+            document.getElementById('vote-list').innerHTML = '<div class="loader mx-auto"></div>';
 
-        window.delEvent = async (id, e) => {
-            e.stopPropagation();
-            if (!isAdmin) return alert("僅管理員可刪除");
-            if (!confirm('確定要刪除整個活動嗎？\n這將會一併刪除該活動內的所有投票資料！')) return;
-            
-            try {
-                const eventsCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/events` : 'events';
-                const votesCol = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-                await deleteDoc(doc(db, eventsCol, id));
-                const q = query(collection(db, votesCol), where('eventId', '==', id));
-                const snapshot = await getDocs(q);
-                const batch = writeBatch(db);
-                snapshot.forEach(doc => batch.delete(doc.ref));
-                await batch.commit();
-            } catch (e) { handleError(e); }
-        };
-
-        // --- Voting Logic ---
-        function loadVoting(eventId, title) {
-            currentEventId = eventId;
-            document.getElementById('dashboard-view').classList.add('hidden');
-            document.getElementById('voting-view').classList.remove('hidden');
-            document.getElementById('back-btn').classList.remove('hidden');
-            document.getElementById('current-event-title').textContent = title;
-            document.getElementById('back-btn').onclick = loadDashboard;
-
-            if (unsubVotes) unsubVotes();
-            document.getElementById('voting-loader').classList.remove('hidden');
-            
-            const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-            const q = query(collection(db, collectionName), where('eventId', '==', eventId));
-            
-            unsubVotes = onSnapshot(q, (snapshot) => {
-                document.getElementById('voting-loader').classList.add('hidden');
+            const q = query(getColRef('votes'), where('eventId', '==', id));
+            unsubVotes = onSnapshot(q, (snap) => {
                 const list = document.getElementById('vote-list');
                 list.innerHTML = '';
+                const votes = [];
+                snap.forEach(d => votes.push({id: d.id, ...d.data()}));
+                votes.sort((a,b) => (b.voters?.length||0) - (a.voters?.length||0));
                 
-                if (snapshot.empty) {
-                    document.getElementById('voting-empty-msg').classList.remove('hidden');
-                } else {
-                    document.getElementById('voting-empty-msg').classList.add('hidden');
-                    const votes = [];
-                    snapshot.forEach(doc => votes.push({id: doc.id, ...doc.data()}));
+                const max = votes.length ? (votes[0].voters?.length || 0) : 0;
+                votes.forEach((v, idx) => {
+                    const count = v.voters?.length || 0;
+                    const percent = max > 0 ? (count/max)*100 : 0;
+                    const hasVoted = v.voters && v.voters.includes(currentUser.uid);
+                    const isWinner = idx === 0 && count > 0;
                     
-                    votes.sort((a,b) => (b.voters?.length || 0) - (a.voters?.length || 0));
-                    const max = votes.length > 0 ? (votes[0].voters?.length || 0) : 0;
-
-                    votes.forEach((v, index) => {
-                        const count = v.voters?.length || 0;
-                        const percent = max > 0 ? (count / max) * 100 : 0;
-                        const hasVoted = v.voters && v.voters.includes(currentUser.uid);
-                        
-                        // 判定是否為第一名 (票數 > 0 且索引為 0)
-                        const isWinner = index === 0 && count > 0;
-
-                        // 樣式變數
-                        let borderClass = hasVoted ? 'border-l-4 border-blue-500 bg-blue-50' : 'bg-white';
-                        let progressBarColor = 'bg-blue-200';
-                        
-                        // 若是第一名，覆蓋樣式為金色
-                        if (isWinner) {
-                            borderClass = hasVoted 
-                                ? 'border-l-4 border-yellow-500 bg-yellow-50 ring-1 ring-yellow-200' 
-                                : 'border-l-4 border-yellow-400 bg-yellow-50';
-                            progressBarColor = 'bg-yellow-200';
-                        }
-
-                        const checkIcon = hasVoted ? '<i class="fa-solid fa-check-circle text-2xl text-blue-600"></i>' : '';
-                        const deleteBtn = isAdmin ? `<button onclick="window.delVote('${v.id}', event)" class="ml-2 text-red-300 hover:text-red-500 p-2 z-10"><i class="fa-solid fa-trash"></i></button>` : '';
-                        
-                        // 獎盃圖示 (僅第一名顯示)
-                        const trophyIcon = isWinner ? '<i class="fa-solid fa-trophy text-yellow-500 mr-2 text-xl drop-shadow-sm"></i>' : '';
-
-                        const canVote = isAdmin || isMember;
-                        const clickAction = canVote ? `onclick="window.toggleVote('${v.id}', ${hasVoted})"` : '';
-                        const cursor = canVote ? 'cursor-pointer hover:bg-gray-50' : 'cursor-default';
-
-                        list.innerHTML += `
-                            <div ${clickAction} class="relative p-4 rounded-lg shadow-sm border border-gray-100 ${borderClass} ${cursor} overflow-hidden mb-3 transition-colors">
-                                <div class="absolute top-0 left-0 bottom-0 ${progressBarColor} opacity-20 pointer-events-none" style="width: ${percent}%"></div>
-                                <div class="relative flex justify-between items-center z-10">
-                                    <div>
-                                        <div class="font-bold text-lg text-gray-800 flex items-center">
-                                            ${trophyIcon}
-                                            ${v.date} <span class="text-sm font-normal text-gray-500 ml-2">${v.note || ''}</span>
-                                        </div>
-                                        <div class="text-xs text-gray-500 mt-1 ml-1">${count} 人參加</div>
-                                    </div>
-                                    <div class="flex items-center">
-                                        ${checkIcon}
-                                        ${deleteBtn}
-                                    </div>
-                                </div>
+                    let border = hasVoted ? 'border-l-4 border-blue-500 bg-blue-50' : 'bg-white';
+                    let bar = 'bg-blue-200';
+                    let trophy = '';
+                    if (isWinner) {
+                        border = hasVoted ? 'border-l-4 border-yellow-500 bg-yellow-50' : 'border-l-4 border-yellow-400 bg-yellow-50';
+                        bar = 'bg-yellow-200';
+                        trophy = '<i class="fa-solid fa-trophy text-yellow-500 mr-2"></i>';
+                    }
+                    
+                    const delBtn = isAdmin ? `<button onclick="window.delVoteItem('${v.id}', event)" class="ml-2 text-red-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>` : '';
+                    const check = hasVoted ? '<i class="fa-solid fa-check-circle text-2xl text-blue-600"></i>' : '';
+                    const canVote = isAdmin || isMember;
+                    
+                    list.innerHTML += `
+                        <div onclick="${canVote ? `window.doVote('${v.id}', ${hasVoted})` : ''}" class="relative p-4 rounded-lg shadow-sm border ${border} ${canVote?'cursor-pointer':'cursor-default'} overflow-hidden">
+                            <div class="absolute top-0 left-0 bottom-0 ${bar} opacity-20 pointer-events-none" style="width:${percent}%"></div>
+                            <div class="relative flex justify-between items-center z-10">
+                                <div class="font-bold flex items-center">${trophy} ${v.date} <span class="text-sm font-normal text-gray-500 ml-2">${v.note||''}</span> <span class="text-xs text-gray-500 ml-1">(${count}人)</span></div>
+                                <div class="flex items-center">${check}${delBtn}</div>
                             </div>
-                        `;
-                    });
-                }
-            }, handleError);
-        }
-
-        document.getElementById('add-vote-btn').onclick = async function() {
-            if (!isAdmin && !isMember) return alert("權限不足");
-            
-            const date = document.getElementById('new-vote-date').value;
-            const note = document.getElementById('new-vote-note').value;
-            if (!date) return alert('請選擇日期');
-            
-            this.disabled = true;
-            try {
-                const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-                await addDoc(collection(db, collectionName), {
-                    eventId: currentEventId,
-                    date,
-                    note,
-                    voters: []
+                        </div>`;
                 });
-                document.getElementById('new-vote-date').value = '';
-                document.getElementById('new-vote-note').value = '';
-                // 重置自定義日期顯示
-                dateDisplayText.textContent = '年/月/日';
-                dateDisplayText.classList.add('text-gray-400');
-                dateDisplayText.classList.remove('text-gray-800');
-                
-            } catch (e) { handleError(e); }
-            this.disabled = false;
+            });
         };
 
-        window.delVote = async (id, e) => {
-            e.stopPropagation();
-            if (!isAdmin) return alert("僅管理員可刪除");
-            if (!confirm('刪除選項？')) return;
-            try { 
-                const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-                await deleteDoc(doc(db, collectionName, id)); 
-            } catch (e) { handleError(e); }
+        // [Vote Actions]
+        document.getElementById('create-event-btn').onclick = async () => {
+            const t = document.getElementById('new-event-title').value;
+            if(!t) return;
+            await addDoc(getColRef('events'), {title: t, creator: displayName, createdAt: serverTimestamp()});
+            document.getElementById('new-event-title').value = '';
+        };
+        document.getElementById('add-vote-btn').onclick = async () => {
+            const d = document.getElementById('new-vote-date').value;
+            const n = document.getElementById('new-vote-note').value;
+            if(!d) return;
+            await addDoc(getColRef('votes'), {eventId: currentVoteEventId, date: d, note: n, voters: []});
+            document.getElementById('new-vote-date').value = '';
+            document.getElementById('new-vote-note').value = '';
+            document.getElementById('date-display-text').textContent = '年/月/日';
+        };
+        window.doVote = async (id, has) => {
+            const ref = getDocRef('votes', id);
+            if(has) await updateDoc(ref, {voters: arrayRemove(currentUser.uid)});
+            else await updateDoc(ref, {voters: arrayUnion(currentUser.uid)});
+        };
+        window.delEvent = async (id, e) => {
+            e.stopPropagation(); if(confirm('刪除活動?')) await deleteDoc(getDocRef('events', id));
+        };
+        window.delVoteItem = async (id, e) => {
+            e.stopPropagation(); if(confirm('刪除選項?')) await deleteDoc(getDocRef('votes', id));
         };
 
-        window.toggleVote = async (id, hasVoted) => {
-            if (!isAdmin && !isMember) return;
-            try {
-                const collectionName = (typeof __app_id !== 'undefined') ? `artifacts/${__app_id}/public/data/votes` : 'votes';
-                const ref = doc(db, collectionName, id);
-                if (hasVoted) await updateDoc(ref, { voters: arrayRemove(currentUser.uid) });
-                else await updateDoc(ref, { voters: arrayUnion(currentUser.uid) });
-            } catch (e) { handleError(e); }
-        };
+        // ============================
+        //  FINE APP LOGIC
+        // ============================
+        let unsubFineEvents = null, unsubFineRecords = null;
+        let currentFineEvent = null;
 
-        function handleError(error) {
-            console.error(error);
-            if (error.code === 'permission-denied') {
-                document.getElementById('permission-warning').classList.remove('hidden');
-                setTimeout(() => document.getElementById('permission-warning').classList.add('hidden'), 4000);
+        function initFineApp() {
+            document.getElementById('main-menu-container').classList.add('hidden');
+            document.getElementById('fine-app-container').classList.remove('hidden');
+            
+            const createCard = document.getElementById('create-fine-event-card');
+            if (isAdmin) {
+                createCard.classList.remove('hidden');
+                loadUserListForFine();
+            } else {
+                createCard.classList.add('hidden');
             }
+            
+            loadFineDashboard();
         }
+
+        async function loadUserListForFine() {
+            const list = document.getElementById('user-select-list');
+            list.innerHTML = '讀取中...';
+            try {
+                const snap = await getDocs(getColRef('users'));
+                list.innerHTML = '';
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    list.innerHTML += `
+                        <label class="flex items-center space-x-2 text-sm p-1 hover:bg-gray-50 rounded cursor-pointer">
+                            <input type="checkbox" value="${doc.id}" class="fine-user-check form-checkbox text-red-600 rounded">
+                            <span>${u.name}</span>
+                        </label>
+                    `;
+                });
+            } catch (e) { list.innerHTML = '讀取失敗'; }
+        }
+
+        // Add task row dynamic
+        window.addTaskRow = () => {
+            const div = document.createElement('div');
+            div.className = "flex gap-2 task-row";
+            div.innerHTML = `
+                <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 flex-1 task-name">
+                <input type="number" placeholder="$" class="border rounded px-3 py-1 w-24 task-fine">
+                <button onclick="this.parentElement.remove()" class="text-red-500"><i class="fa-solid fa-xmark"></i></button>
+            `;
+            document.getElementById('task-inputs').appendChild(div);
+        };
+
+        window.createFineEvent = async () => {
+            const title = document.getElementById('fine-title').value;
+            const start = document.getElementById('fine-start').value;
+            const end = document.getElementById('fine-end').value;
+            if(!title || !start || !end) return alert('請填寫完整資訊');
+
+            const tasks = [];
+            document.querySelectorAll('.task-row').forEach((row, idx) => {
+                const name = row.querySelector('.task-name').value;
+                const amt = row.querySelector('.task-fine').value;
+                if(name && amt) tasks.push({id: 't'+idx, name, amount: parseInt(amt)});
+            });
+            
+            const participants = [];
+            document.querySelectorAll('.fine-user-check:checked').forEach(cb => {
+                participants.push({uid: cb.value, name: cb.nextElementSibling.textContent});
+            });
+
+            if(!tasks.length || !participants.length) return alert('至少需有一個任務與一位參加者');
+
+            await addDoc(getColRef('fine_events'), {
+                title, startDate: start, endDate: end, tasks, participants,
+                createdAt: serverTimestamp()
+            });
+            alert('建立成功');
+            // reset form...
+        };
+
+        function loadFineDashboard() {
+            document.getElementById('fine-dashboard-view').classList.remove('hidden');
+            document.getElementById('fine-detail-view').classList.add('hidden');
+            if(unsubFineRecords) unsubFineRecords();
+
+            const q = query(getColRef('fine_events'), orderBy('createdAt', 'desc'));
+            unsubFineEvents = onSnapshot(q, (snap) => {
+                const list = document.getElementById('fine-events-list');
+                list.innerHTML = '';
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    const delBtn = isAdmin ? `<button onclick="window.delFineEvent('${doc.id}', event)" class="text-gray-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash"></i></button>` : '';
+                    list.innerHTML += `
+                        <div onclick="loadFineDetail('${doc.id}')" class="bg-white p-5 rounded-xl shadow cursor-pointer border-l-4 border-red-500 flex justify-between items-center hover:bg-red-50">
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-800">${d.title}</h3>
+                                <p class="text-xs text-gray-500">${d.startDate} ~ ${d.endDate}</p>
+                            </div>
+                            ${delBtn}
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        window.delFineEvent = async (id, e) => {
+            e.stopPropagation();
+            if(confirm('刪除此活動?')) await deleteDoc(getDocRef('fine_events', id));
+        };
+
+        window.loadFineDetail = async (id) => {
+            const docSnap = await getDoc(getDocRef('fine_events', id));
+            if (!docSnap.exists()) return;
+            currentFineEvent = {id, ...docSnap.data()};
+            
+            document.getElementById('fine-dashboard-view').classList.add('hidden');
+            document.getElementById('fine-detail-view').classList.remove('hidden');
+            
+            document.getElementById('fd-title').textContent = currentFineEvent.title;
+            document.getElementById('fd-dates').textContent = `${currentFineEvent.startDate} ~ ${currentFineEvent.endDate}`;
+            
+            renderDailyCheck();
+            calculateAndRenderStats();
+        };
+
+        function renderDailyCheck() {
+            const area = document.getElementById('daily-check-area');
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('today-date-str').textContent = todayStr;
+            
+            // Check if today is within range
+            if (todayStr < currentFineEvent.startDate || todayStr > currentFineEvent.endDate) {
+                area.innerHTML = '<p class="text-gray-500">非活動期間</p>';
+                return;
+            }
+
+            // Check if current user is participant
+            const me = currentFineEvent.participants.find(p => p.uid === currentUser.uid);
+            if (!me) {
+                area.innerHTML = '<p class="text-gray-500">您不是此活動的參加者</p>';
+                return;
+            }
+
+            // Listen to my record for today
+            const recordId = `${currentFineEvent.id}_${todayStr}_${currentUser.uid}`;
+            const ref = getDocRef('fine_records', recordId);
+            
+            onSnapshot(ref, (snap) => {
+                const data = snap.exists() ? snap.data() : { completed: [] };
+                let html = '';
+                currentFineEvent.tasks.forEach(t => {
+                    const checked = data.completed && data.completed.includes(t.id) ? 'checked' : '';
+                    html += `
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
+                            <input type="checkbox" onchange="toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
+                            <span class="ml-3 font-medium text-gray-700">${t.name}</span>
+                        </label>
+                    `;
+                });
+                area.innerHTML = html;
+            });
+        }
+
+        window.toggleTask = async (recId, taskId, isDone) => {
+            const ref = getDocRef('fine_records', recId);
+            // Firestore update logic: arrayUnion/Remove needs doc to exist.
+            // Use setDoc with merge for safety
+            const snap = await getDoc(ref);
+            if (!snap.exists()) {
+                if (isDone) await setDoc(ref, { completed: [taskId] });
+            } else {
+                if (isDone) await updateDoc(ref, { completed: arrayUnion(taskId) });
+                else await updateDoc(ref, { completed: arrayRemove(taskId) });
+            }
+        };
+
+        async function calculateAndRenderStats() {
+            // Load ALL records for this event
+            // This might be heavy for huge events, but ok for small scale
+            const q = query(getColRef('fine_records'), 
+                where('__name__', '>=', `${currentFineEvent.id}_`), 
+                where('__name__', '<=', `${currentFineEvent.id}_\uf8ff`));
+            
+            const snap = await getDocs(q);
+            const recordsMap = {}; // key: uid_date, val: [taskIds]
+            snap.forEach(d => {
+                const parts = d.id.split('_'); // [eventId, date, uid]
+                const uid = parts.slice(2).join('_'); // handle uid having underscores? uid shouldn't.
+                const date = parts[1];
+                if(!recordsMap[uid]) recordsMap[uid] = {};
+                recordsMap[uid][date] = d.data().completed || [];
+            });
+
+            // Calculate Date Array
+            const dates = [];
+            let curr = new Date(currentFineEvent.startDate);
+            const end = new Date(currentFineEvent.endDate);
+            const today = new Date();
+            // Only count up to yesterday? Or today?
+            // Usually fine logic counts "past days" + "today if passed deadline".
+            // Let's count up to min(today, end).
+            const calcEnd = end < today ? end : today; 
+            
+            for(let d = new Date(curr); d <= calcEnd; d.setDate(d.getDate()+1)) {
+                dates.push(d.toISOString().split('T')[0]);
+            }
+
+            // Build Table Header
+            const thead = document.getElementById('stats-header');
+            let headerHTML = '<th class="px-4 py-3 bg-gray-50">姓名</th>';
+            currentFineEvent.tasks.forEach(t => {
+                headerHTML += `<th class="px-4 py-3 text-center bg-gray-50 text-red-600">${t.name}<br><span class="text-xs">未完成</span></th>`;
+            });
+            headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold">總罰金</th>';
+            thead.innerHTML = headerHTML;
+
+            // Build Body
+            const tbody = document.getElementById('stats-body');
+            tbody.innerHTML = '';
+            
+            currentFineEvent.participants.forEach(p => {
+                const userRecs = recordsMap[p.uid] || {};
+                let rowHTML = `<td class="px-4 py-3 font-medium text-gray-900 border-b">${p.name}</td>`;
+                let totalFine = 0;
+
+                currentFineEvent.tasks.forEach(t => {
+                    let missCount = 0;
+                    dates.forEach(date => {
+                        // Logic: Did they check it?
+                        // If date is TODAY, maybe give them time until end of day?
+                        // For now, strict calculation: if not checked, it's a miss.
+                        const done = userRecs[date] && userRecs[date].includes(t.id);
+                        if (!done) missCount++;
+                    });
+                    const fine = missCount * t.amount;
+                    totalFine += fine;
+                    rowHTML += `<td class="px-4 py-3 text-center border-b text-gray-600">${missCount} <span class="text-xs text-gray-400">($${fine})</span></td>`;
+                });
+                
+                rowHTML += `<td class="px-4 py-3 text-right border-b font-bold text-red-600">$${totalFine}</td>`;
+                tbody.innerHTML += `<tr>${rowHTML}</tr>`;
+            });
+        }
+
     </script>
 </body>
 </html>
