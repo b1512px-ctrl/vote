@@ -17,6 +17,8 @@
         })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 用於匯出圖片 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
@@ -33,8 +35,11 @@
         .toggle-checkbox:checked { right: 0; border-color: #4F46E5; }
         .toggle-checkbox:checked + .toggle-label { background-color: #4F46E5; }
         
-        /* 表格響應式優化 */
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        
+        /* 定課卡片匯出樣式 */
+        #export-canvas-container { position: absolute; left: -9999px; top: -9999px; }
+        .lesson-export-card { width: 600px; padding: 40px; background: white; font-family: 'Helvetica', 'Arial', sans-serif; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
@@ -71,7 +76,7 @@
         </div>
     </div>
 
-    <!-- 2. 主選單 (登入後顯示) -->
+    <!-- 2. 主選單 -->
     <div id="main-menu-container" class="hidden min-h-screen flex flex-col">
         <header class="bg-gray-800 text-white shadow-lg p-4 flex justify-between items-center">
             <h1 class="text-xl font-bold"><i class="fa-solid fa-bars mr-2"></i>功能選單</h1>
@@ -80,21 +85,27 @@
                 <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-6 content-center">
-            <div onclick="switchApp('vote')" class="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
+        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 content-center">
+            <div onclick="switchApp('vote')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
                 <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">投票功能</h2>
-                <p class="text-gray-500">發起聚餐、活動日期投票，即時統計參加人數。</p>
+                <p class="text-gray-500 text-sm">發起聚餐、活動日期投票，即時統計參加人數。</p>
             </div>
-            <div onclick="switchApp('fine')" class="bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-red-500 transition-all group">
+            <div onclick="switchApp('fine')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-red-500 transition-all group">
                 <div class="text-red-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-gavel"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
-                <p class="text-gray-500">追蹤活動任務執行狀況，自動計算未完成罰款。</p>
+                <p class="text-gray-500 text-sm">追蹤任務執行與罰款計算。</p>
+            </div>
+            <!-- 新增每日定課 -->
+            <div onclick="switchApp('lesson')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-teal-500 transition-all group">
+                <div class="text-teal-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open-reader"></i></div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">每日定課</h2>
+                <p class="text-gray-500 text-sm">紀錄每日感恩、觀心書與待辦。</p>
             </div>
         </main>
     </div>
 
-    <!-- 3. 投票功能 (Voting App) -->
+    <!-- 3. 投票功能 -->
     <div id="vote-app-container" class="hidden min-h-screen pb-10">
         <header id="vote-header" class="bg-gray-800 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300">
             <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -102,18 +113,14 @@
                 <button onclick="backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
             </div>
         </header>
-        
         <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 設定與權限警告 -->
-            <div id="permission-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
+             <div id="permission-warning" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 hidden">
                 <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足</p>
                 <p class="text-sm">操作被拒絕。請確認權限或 Firestore Rules。</p>
             </div>
-
-            <!-- Vote Dashboard -->
-            <div id="vote-dashboard-view">
-                <!-- 柱專用設定 -->
-                <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
+            <!-- ... Vote Dashboard & Details (content managed by JS) ... -->
+             <div id="vote-dashboard-view">
+                 <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center"><i class="fa-solid fa-gears text-indigo-600 text-xl mr-3"></i><div><h3 class="font-bold text-gray-800">系統管理</h3><p class="text-xs text-gray-500">成員註冊開關</p></div></div>
                         <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
@@ -123,8 +130,6 @@
                     </div>
                     <p id="reg-status-text" class="text-right text-xs mt-1 text-gray-500">讀取中...</p>
                 </div>
-
-                <!-- 建立活動 -->
                 <div id="create-event-section" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 hidden">
                     <h2 class="text-lg font-semibold mb-4 text-gray-700">發起新活動</h2>
                     <div class="flex flex-col md:flex-row gap-3">
@@ -132,21 +137,14 @@
                         <button id="create-event-btn" class="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-bold whitespace-nowrap">建立</button>
                     </div>
                 </div>
-
                 <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">活動列表</h2></div>
                 <div id="events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
-
-            <!-- Vote Detail -->
             <div id="vote-detail-view" class="hidden">
                 <div class="flex justify-between items-center mb-4">
                     <h2 id="current-vote-title" class="text-2xl font-bold text-gray-800"></h2>
-                    <button onclick="window.loadVoteDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
-                    </button>
+                    <button onclick="window.loadVoteDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm"><i class="fa-solid fa-arrow-left mr-1"></i> 回列表</button>
                 </div>
-
-                <!-- 新增選項 -->
                 <div id="create-vote-section" class="bg-white rounded-xl shadow-md p-4 mb-6 border hidden">
                     <div class="flex items-center mb-2 text-gray-800 text-sm font-bold" id="cv-header-text"><i class="fa-solid fa-pen-to-square mr-1"></i> 新增選項</div>
                     <div class="flex flex-col md:flex-row gap-2">
@@ -160,14 +158,13 @@
                         <button id="add-vote-btn" class="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold">新增</button>
                     </div>
                 </div>
-
                 <div id="guest-hint" class="bg-gray-100 text-gray-600 p-3 rounded-lg mb-6 text-center text-sm border hidden"><i class="fa-solid fa-eye mr-1"></i> 訪客模式 (唯讀)</div>
                 <div id="vote-list" class="space-y-3"></div>
             </div>
         </main>
     </div>
 
-    <!-- 4. 罰款統計功能 (Fine App) -->
+    <!-- 4. 罰款統計功能 -->
     <div id="fine-app-container" class="hidden min-h-screen pb-10">
         <header class="bg-red-800 text-white shadow-lg sticky top-0 z-10">
             <div class="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -175,126 +172,166 @@
                 <button onclick="backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
             </div>
         </header>
-
         <main class="max-w-5xl mx-auto px-4 py-6">
-            <!-- 罰款儀表板 -->
             <div id="fine-dashboard-view">
-                <!-- 管理員：建立罰款活動 -->
                 <div id="create-fine-event-card" class="bg-white rounded-xl shadow-md mb-8 border-l-4 border-red-500 hidden overflow-hidden transition-all">
-                    <!-- Header -->
                     <div class="p-6 flex justify-between items-center cursor-pointer hover:bg-gray-50 select-none" onclick="window.toggleFineForm()">
                         <h2 class="text-lg font-semibold text-gray-700 m-0">建立新活動任務</h2>
                         <i id="fine-form-arrow" class="fa-solid fa-chevron-down text-gray-400 transition-transform duration-300"></i>
                     </div>
-                    
-                    <!-- Content (Hidden by default) -->
                     <div id="fine-form-content" class="px-6 pb-6 hidden border-t border-gray-100 pt-4">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <input type="text" id="fine-title" placeholder="活動名稱 (例: 1月健身挑戰)" class="border rounded px-3 py-2 w-full">
+                            <input type="text" id="fine-title" placeholder="活動名稱" class="border rounded px-3 py-2 w-full">
                             <div class="flex gap-2">
-                                <!-- 自定義開始日期 -->
                                 <div class="relative w-1/2 group cursor-pointer" onclick="try{document.getElementById('fine-start').showPicker()}catch(e){document.getElementById('fine-start').focus()}">
                                     <input type="date" id="fine-start" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
                                     <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-200">
-                                        <span id="fine-start-display-text" class="text-gray-400 text-sm select-none">開始日期</span>
-                                        <i class="fa-regular fa-calendar text-gray-400"></i>
+                                        <span id="fine-start-display-text" class="text-gray-400 text-sm select-none">開始日期</span><i class="fa-regular fa-calendar text-gray-400"></i>
                                     </div>
                                 </div>
-                                <!-- 自定義結束日期 -->
                                 <div class="relative w-1/2 group cursor-pointer" onclick="try{document.getElementById('fine-end').showPicker()}catch(e){document.getElementById('fine-end').focus()}">
                                     <input type="date" id="fine-end" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
                                     <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-200">
-                                        <span id="fine-end-display-text" class="text-gray-400 text-sm select-none">結束日期</span>
-                                        <i class="fa-regular fa-calendar text-gray-400"></i>
+                                        <span id="fine-end-display-text" class="text-gray-400 text-sm select-none">結束日期</span><i class="fa-regular fa-calendar text-gray-400"></i>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- 任務設定 -->
                         <div class="mb-4 p-3 bg-gray-50 rounded border">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">任務與罰金設定</h3>
                             <div id="task-inputs" class="space-y-3">
-                                <!-- JS 動態生成的 task-row 也會套用此結構 -->
                                 <div class="flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0">
-                                    <input type="text" placeholder="任務名稱 (例: 打拳)" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
+                                    <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
                                     <div class="flex gap-2">
                                         <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
-                                        <!-- 預設第一行不給刪除按鈕，或透過 JS 統一管理 -->
                                     </div>
                                 </div>
                             </div>
                             <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-3 hover:underline flex items-center"><i class="fa-solid fa-plus mr-1"></i> 增加任務</button>
                         </div>
-
-                        <!-- 人員選擇 -->
                         <div class="mb-4">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
-                            <div id="user-select-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto border p-2 rounded bg-white">
-                                <p class="text-xs text-gray-400 col-span-full">載入中...</p>
-                            </div>
+                            <div id="user-select-list" class="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-32 overflow-y-auto border p-2 rounded bg-white"><p class="text-xs text-gray-400 col-span-full">載入中...</p></div>
                             <p class="text-xs text-gray-400 mt-1">* 只有登入過的使用者會出現在此列表</p>
-                            
-                            <!-- 手動加入人員 -->
                             <div class="mt-2 p-2 bg-gray-50 rounded border border-gray-200">
                                 <p class="text-xs font-bold text-gray-600 mb-1">找不到人？手動補登</p>
                                 <div class="flex flex-col sm:flex-row gap-2">
                                     <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-full sm:w-1/3">
                                     <div class="flex gap-2 w-full sm:flex-1">
-                                        <input type="text" id="manual-user-uid" placeholder="UID (在Firebase Authentication查看)" class="border rounded px-2 py-1 text-sm flex-1">
+                                        <input type="text" id="manual-user-uid" placeholder="UID" class="border rounded px-2 py-1 text-sm flex-1">
                                         <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 whitespace-nowrap">加入</button>
                                     </div>
                                 </div>
-                                <p class="text-[10px] text-gray-400 mt-1">注意：若不填寫 UID，系統會隨機生成，但該使用者將無法登入打卡。</p>
                             </div>
                         </div>
-
                         <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
                     </div>
                 </div>
-
                 <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">進行中的任務</h2></div>
                 <div id="fine-events-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
-
-            <!-- 罰款詳情 (打卡 + 報表) -->
             <div id="fine-detail-view" class="hidden">
                 <div class="flex justify-between items-center mb-6">
-                    <div>
-                        <h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2>
-                        <p id="fd-dates" class="text-sm text-gray-500"></p>
-                    </div>
-                    <!-- 修正：使用 window.loadFineDashboard 並美化按鈕 -->
-                    <button onclick="window.loadFineDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> 回列表
-                    </button>
+                    <div><h2 id="fd-title" class="text-2xl font-bold text-gray-800"></h2><p id="fd-dates" class="text-sm text-gray-500"></p></div>
+                    <button onclick="window.loadFineDashboard()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center shadow-sm"><i class="fa-solid fa-arrow-left mr-1"></i> 回列表</button>
                 </div>
-
-                <!-- 今日打卡區 -->
                 <div class="bg-white rounded-xl shadow-md p-6 mb-8 border border-green-100">
-                    <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center">
-                        <i class="fa-solid fa-calendar-check text-green-600 mr-2"></i> 
-                        今日打卡 (<span id="today-date-str"></span>)
-                    </h3>
-                    <div id="daily-check-area" class="space-y-3">
-                        <p class="text-gray-400">載入中...</p>
-                    </div>
+                    <h3 class="text-lg font-bold text-gray-700 mb-4 flex items-center"><i class="fa-solid fa-calendar-check text-green-600 mr-2"></i> 今日打卡 (<span id="today-date-str"></span>)</h3>
+                    <div id="daily-check-area" class="space-y-3"><p class="text-gray-400">載入中...</p></div>
                 </div>
-
-                <!-- 統計報表 -->
                 <div class="bg-white rounded-xl shadow-md p-6 overflow-hidden">
                     <h3 class="text-lg font-bold text-gray-700 mb-4"><i class="fa-solid fa-table mr-2"></i>罰款統計表</h3>
                     <div class="table-responsive">
-                        <table class="w-full text-sm text-left border-collapse">
-                            <thead class="bg-gray-100 text-gray-600 uppercase">
-                                <tr id="stats-header"></tr>
-                            </thead>
-                            <tbody id="stats-body" class="divide-y divide-gray-200"></tbody>
-                        </table>
+                        <table class="w-full text-sm text-left border-collapse"><thead class="bg-gray-100 text-gray-600 uppercase"><tr id="stats-header"></tr></thead><tbody id="stats-body" class="divide-y divide-gray-200"></tbody></table>
                     </div>
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- 5. 每日定課功能 (Lesson App) -->
+    <div id="lesson-app-container" class="hidden min-h-screen pb-10">
+        <header class="bg-teal-700 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-book-open-reader"></i>每日定課</h1>
+                <button onclick="backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
+            </div>
+        </header>
+
+        <main class="max-w-4xl mx-auto px-4 py-6">
+            <!-- 頂部功能列: 選擇人員 + 日期 -->
+            <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-teal-500">
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                    <label class="text-sm font-bold text-gray-600">查看人員:</label>
+                    <select id="lesson-user-select" class="border rounded px-3 py-2 flex-1 md:flex-none text-sm bg-gray-50 focus:ring-2 focus:ring-teal-500 outline-none">
+                        <!-- JS Populate -->
+                    </select>
+                </div>
+                <div class="flex items-center gap-2 w-full md:w-auto">
+                     <!-- 自定義日期選擇器 -->
+                     <div class="relative w-full md:w-48 group cursor-pointer" onclick="try{document.getElementById('lesson-date').showPicker()}catch(e){document.getElementById('lesson-date').focus()}">
+                        <input type="date" id="lesson-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
+                        <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[38px] transition-colors border-gray-300">
+                            <span id="lesson-date-display" class="text-gray-800 text-sm select-none">今天</span>
+                            <i class="fa-regular fa-calendar text-teal-500"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="lesson-content-area">
+                <!-- 定課表單 -->
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-8 relative">
+                    <div id="lesson-overlay" class="absolute inset-0 bg-gray-100/50 z-10 hidden flex items-center justify-center rounded-xl cursor-not-allowed"></div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-teal-700 mb-3 border-b pb-2">每日五感恩</h3>
+                        <div class="space-y-2" id="gratitude-inputs">
+                            <input type="text" class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="1. ...">
+                            <input type="text" class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="2. ...">
+                            <input type="text" class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="3. ...">
+                            <input type="text" class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="4. ...">
+                            <input type="text" class="w-full border rounded px-3 py-2 text-sm focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="5. ...">
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-teal-700 mb-3 border-b pb-2">關心書</h3>
+                        <textarea id="carebook-input" class="w-full border rounded px-3 py-2 text-sm h-24 focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="寫下今天的觀察與關心..."></textarea>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-bold text-teal-700 mb-3 border-b pb-2">To-do</h3>
+                        <textarea id="todo-input" class="w-full border rounded px-3 py-2 text-sm h-24 focus:ring-1 focus:ring-teal-500 outline-none l-input" placeholder="待辦事項..."></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-3">
+                        <p id="lesson-msg" class="text-sm text-green-600 self-center font-bold mr-2"></p>
+                        <button onclick="saveLesson()" id="save-lesson-btn" class="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg font-bold shadow transition-colors">儲存</button>
+                    </div>
+                </div>
+
+                <!-- 匯出與歷史 -->
+                <div class="bg-gray-50 rounded-xl border border-gray-200 p-6">
+                    <h3 class="text-lg font-bold text-gray-600 mb-4 flex items-center justify-between">
+                        <span><i class="fa-solid fa-clock-rotate-left mr-2"></i>定課紀錄 (最近60天)</span>
+                        <button onclick="exportSelectedLessons()" class="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5 rounded transition-colors"><i class="fa-solid fa-download mr-1"></i>匯出選取卡片</button>
+                    </h3>
+                    
+                    <div class="flex items-center gap-2 mb-2 ml-1">
+                        <input type="checkbox" id="check-all-lessons" onchange="toggleAllLessons(this.checked)" class="form-checkbox text-teal-600 rounded">
+                        <label for="check-all-lessons" class="text-sm text-gray-500 cursor-pointer select-none">全選</label>
+                    </div>
+
+                    <div id="lesson-history-list" class="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-60 overflow-y-auto">
+                        <p class="text-gray-400 text-sm col-span-full">載入中...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- 隱藏的匯出容器 -->
+        <div id="export-canvas-container"></div>
     </div>
 
     <script type="module">
@@ -353,12 +390,10 @@
                 currentUser = user;
                 checkUserPermissions(user);
                 
-                // 恢復顯示名稱
                 displayName = sessionStorage.getItem('display_name');
                 if (!displayName && user.email) displayName = user.email.split('@')[0].replace('_', ' ').toUpperCase();
                 if (!displayName) displayName = 'Guest';
 
-                // 同步使用者資料到 users 集合 (供下拉選單用)
                 if (isAdmin || isMember) {
                     await setDoc(getDocRef('users', user.uid), {
                         name: displayName,
@@ -372,25 +407,35 @@
                 showLoginUI();
             }
         });
-
-        // 2. 日期選擇器邏輯 (Custom Date Picker) - VOTE APP
-        const newVoteDateInput = document.getElementById('new-vote-date');
-        const dateDisplayText = document.getElementById('date-display-text');
         
-        if (newVoteDateInput) {
-            newVoteDateInput.addEventListener('change', function() {
-                if (this.value) {
-                    const formattedDate = this.value.replace(/-/g, '/');
-                    dateDisplayText.textContent = formattedDate;
-                    dateDisplayText.classList.remove('text-gray-400');
-                    dateDisplayText.classList.add('text-gray-800');
-                } else {
-                    dateDisplayText.textContent = '年/月/日';
-                    dateDisplayText.classList.add('text-gray-400');
-                    dateDisplayText.classList.remove('text-gray-800');
-                }
-            });
-        }
+        // Date Pickers Listeners
+        ['new-vote-date', 'fine-start', 'fine-end', 'lesson-date'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.addEventListener('change', function() {
+                    const suffix = id === 'lesson-date' ? '-display' : (id === 'new-vote-date' ? '-display-text' : '-display-text');
+                    const display = document.getElementById(id.replace('new-vote-date', 'date').replace('fine-start', 'fine-start').replace('fine-end', 'fine-end') + (id === 'lesson-date' ? '-display' : '-display-text'));
+                    
+                    // Specific fix for vote date
+                    let targetDisplay = display;
+                    if(id === 'new-vote-date') targetDisplay = document.getElementById('date-display-text');
+
+                    if (this.value) {
+                        const formattedDate = this.value.replace(/-/g, '/');
+                        targetDisplay.textContent = formattedDate;
+                        targetDisplay.classList.remove('text-gray-400');
+                        targetDisplay.classList.add('text-gray-800');
+                        if(id === 'lesson-date') loadLessonData();
+                    } else {
+                         if(id === 'lesson-date') targetDisplay.textContent = '今天';
+                         else if(id === 'new-vote-date') targetDisplay.textContent = '年/月/日';
+                         else targetDisplay.textContent = id === 'fine-start' ? '開始日期' : '結束日期';
+                         targetDisplay.classList.add('text-gray-400');
+                         targetDisplay.classList.remove('text-gray-800');
+                    }
+                });
+            }
+        });
 
         function checkUserPermissions(user) {
             const email = user.email || '';
@@ -479,7 +524,6 @@
             }
         }
 
-        // 修正：只綁定選單頁面的登出按鈕
         const menuLogoutBtn = document.getElementById('menu-logout-btn');
         if (menuLogoutBtn) {
             menuLogoutBtn.onclick = () => {
@@ -495,31 +539,33 @@
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('vote-app-container').classList.add('hidden');
             document.getElementById('fine-app-container').classList.add('hidden');
+            document.getElementById('lesson-app-container').classList.add('hidden');
             window.resetLogin();
         }
 
-        // --- MENU & NAVIGATION ---
         function showMenuUI() {
             document.getElementById('welcome-modal').classList.add('hidden');
             document.getElementById('main-menu-container').classList.remove('hidden');
             document.getElementById('vote-app-container').classList.add('hidden');
             document.getElementById('fine-app-container').classList.add('hidden');
+            document.getElementById('lesson-app-container').classList.add('hidden');
             
             const roleStr = isAdmin ? '管理員' : (isMember ? '成員' : '訪客');
             document.getElementById('menu-user-display').textContent = `${roleStr}: ${displayName}`;
         }
 
         window.switchApp = (appName) => {
-            if (appName === 'vote') {
-                initVoteApp();
-            } else if (appName === 'fine') {
+            if (appName === 'vote') initVoteApp();
+            else if (appName === 'fine') {
                 if (!isAdmin && !isMember) return alert("權限不足: 訪客無法進入罰款統計");
                 initFineApp();
+            } else if (appName === 'lesson') {
+                if (!isAdmin && !isMember) return alert("權限不足: 訪客無法進入每日定課");
+                initLessonApp();
             }
         };
 
         window.backToMenu = () => {
-            // cleanup listeners
             if (unsubEvents) unsubEvents();
             if (unsubVotes) unsubVotes();
             if (unsubFineEvents) unsubFineEvents();
@@ -527,17 +573,12 @@
             showMenuUI();
         };
 
-        // ============================
-        //  VOTE APP LOGIC (Simplified)
-        // ============================
-        let unsubEvents = null, unsubVotes = null, currentVoteEventId = null;
-
+        // --- VOTE APP LOGIC (Condensed) ---
+        let unsubEvents, unsubVotes, currentVoteEventId;
         function initVoteApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('vote-app-container').classList.remove('hidden');
-            // 修正：移除存取 user-display 的程式碼
             
-            // Setup UI based on role
             const header = document.getElementById('vote-header');
             const createSec = document.getElementById('create-event-section');
             const createVoteSec = document.getElementById('create-vote-section');
@@ -557,11 +598,8 @@
                 if(cvHeader) cvHeader.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
                 if(dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 guestHint.classList.add('hidden');
-                
-                if (displayName === SUPER_ADMIN) {
-                    settings.classList.remove('hidden');
-                    initSettingsToggle();
-                } else settings.classList.add('hidden');
+                settings.classList[displayName === SUPER_ADMIN ? 'remove' : 'add']('hidden');
+                if(displayName === SUPER_ADMIN) initSettingsToggle();
 
             } else if (isMember) {
                 header.className = "bg-gray-900 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
@@ -580,11 +618,9 @@
                 guestHint.classList.remove('hidden');
                 settings.classList.add('hidden');
             }
-
-            loadVoteDashboard();
+            window.loadVoteDashboard();
         }
-
-        // ... [Settings Toggle Logic] same as before ...
+        
         async function initSettingsToggle() {
             const status = document.getElementById('reg-status-text');
             const toggle = document.getElementById('reg-toggle');
@@ -609,7 +645,6 @@
             document.getElementById('vote-dashboard-view').classList.remove('hidden');
             document.getElementById('vote-detail-view').classList.add('hidden');
             if(unsubVotes) unsubVotes();
-            
             const q = query(getColRef('events'), orderBy('createdAt', 'desc'), limit(20));
             unsubEvents = onSnapshot(q, (snap) => {
                 const list = document.getElementById('events-list');
@@ -619,12 +654,7 @@
                     const d = doc.data();
                     const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString() : '';
                     const delBtn = isAdmin ? `<button onclick="window.delEvent('${doc.id}', event)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` : '';
-                    list.innerHTML += `
-                        <div onclick="loadVoteDetail('${doc.id}', '${d.title}')" class="bg-white p-4 rounded-xl shadow hover:bg-gray-50 relative border cursor-pointer">
-                            <h3 class="font-bold text-lg">${d.title}</h3>
-                            <p class="text-xs text-gray-500">發起: ${d.creator} | ${date}</p>
-                            ${delBtn}
-                        </div>`;
+                    list.innerHTML += `<div onclick="loadVoteDetail('${doc.id}', '${d.title}')" class="bg-white p-4 rounded-xl shadow hover:bg-gray-50 relative border cursor-pointer"><h3 class="font-bold text-lg">${d.title}</h3><p class="text-xs text-gray-500">發起: ${d.creator} | ${date}</p>${delBtn}</div>`;
                 });
             });
         }
@@ -643,14 +673,12 @@
                 const votes = [];
                 snap.forEach(d => votes.push({id: d.id, ...d.data()}));
                 votes.sort((a,b) => (b.voters?.length||0) - (a.voters?.length||0));
-                
                 const max = votes.length ? (votes[0].voters?.length || 0) : 0;
                 votes.forEach((v, idx) => {
                     const count = v.voters?.length || 0;
                     const percent = max > 0 ? (count/max)*100 : 0;
                     const hasVoted = v.voters && v.voters.includes(currentUser.uid);
                     const isWinner = idx === 0 && count > 0;
-                    
                     let border = hasVoted ? 'border-l-4 border-blue-500 bg-blue-50' : 'bg-white';
                     let bar = 'bg-blue-200';
                     let trophy = '';
@@ -659,75 +687,26 @@
                         bar = 'bg-yellow-200';
                         trophy = '<i class="fa-solid fa-trophy text-yellow-500 mr-2"></i>';
                     }
-                    
                     const delBtn = isAdmin ? `<button onclick="window.delVoteItem('${v.id}', event)" class="ml-2 text-red-300 hover:text-red-500"><i class="fa-solid fa-trash"></i></button>` : '';
                     const check = hasVoted ? '<i class="fa-solid fa-check-circle text-2xl text-blue-600"></i>' : '';
                     const canVote = isAdmin || isMember;
-                    
-                    list.innerHTML += `
-                        <div onclick="${canVote ? `window.doVote('${v.id}', ${hasVoted})` : ''}" class="relative p-4 rounded-lg shadow-sm border ${border} ${canVote?'cursor-pointer':'cursor-default'} overflow-hidden">
-                            <div class="absolute top-0 left-0 bottom-0 ${bar} opacity-20 pointer-events-none" style="width:${percent}%"></div>
-                            <div class="relative flex justify-between items-center z-10">
-                                <div class="font-bold flex items-center">${trophy} ${v.date} <span class="text-sm font-normal text-gray-500 ml-2">${v.note||''}</span> <span class="text-xs text-gray-500 ml-1">(${count}人)</span></div>
-                                <div class="flex items-center">${check}${delBtn}</div>
-                            </div>
-                        </div>`;
+                    list.innerHTML += `<div onclick="${canVote ? `window.doVote('${v.id}', ${hasVoted})` : ''}" class="relative p-4 rounded-lg shadow-sm border ${border} ${canVote?'cursor-pointer':'cursor-default'} overflow-hidden"><div class="absolute top-0 left-0 bottom-0 ${bar} opacity-20 pointer-events-none" style="width:${percent}%"></div><div class="relative flex justify-between items-center z-10"><div class="font-bold flex items-center">${trophy} ${v.date} <span class="text-sm font-normal text-gray-500 ml-2">${v.note||''}</span> <span class="text-xs text-gray-500 ml-1">(${count}人)</span></div><div class="flex items-center">${check}${delBtn}</div></div></div>`;
                 });
             });
         };
 
-        // [Vote Actions]
-        document.getElementById('create-event-btn').onclick = async () => {
-            const t = document.getElementById('new-event-title').value;
-            if(!t) return;
-            await addDoc(getColRef('events'), {title: t, creator: displayName, createdAt: serverTimestamp()});
-            document.getElementById('new-event-title').value = '';
-        };
-        document.getElementById('add-vote-btn').onclick = async () => {
-            const d = document.getElementById('new-vote-date').value;
-            const n = document.getElementById('new-vote-note').value;
-            if(!d) return;
-            await addDoc(getColRef('votes'), {eventId: currentVoteEventId, date: d, note: n, voters: []});
-            document.getElementById('new-vote-date').value = '';
-            document.getElementById('new-vote-note').value = '';
-            document.getElementById('date-display-text').textContent = '年/月/日';
-            // fix reset color
-             document.getElementById('date-display-text').classList.add('text-gray-400');
-             document.getElementById('date-display-text').classList.remove('text-gray-800');
-        };
-        window.doVote = async (id, has) => {
-            const ref = getDocRef('votes', id);
-            if(has) await updateDoc(ref, {voters: arrayRemove(currentUser.uid)});
-            else await updateDoc(ref, {voters: arrayUnion(currentUser.uid)});
-        };
-        window.delEvent = async (id, e) => {
-            e.stopPropagation(); if(confirm('刪除活動?')) await deleteDoc(getDocRef('events', id));
-        };
-        window.delVoteItem = async (id, e) => {
-            e.stopPropagation(); if(confirm('刪除選項?')) await deleteDoc(getDocRef('votes', id));
-        };
-
-        // ============================
-        //  FINE APP LOGIC
-        // ============================
-        let unsubFineEvents = null, unsubFineRecords = null, unsubUserList = null;
-        let currentFineEvent = null;
-
+        // --- FINE APP LOGIC (Condensed) ---
+        let unsubFineEvents, unsubFineRecords, unsubUserList, currentFineEvent;
         function initFineApp() {
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('fine-app-container').classList.remove('hidden');
-            
             const createCard = document.getElementById('create-fine-event-card');
             if (isAdmin) {
                 createCard.classList.remove('hidden');
                 loadUserListForFine();
-            } else {
-                createCard.classList.add('hidden');
-            }
-            
+            } else createCard.classList.add('hidden');
             window.loadFineDashboard();
         }
-
         async function loadUserListForFine() {
             const list = document.getElementById('user-select-list');
             list.innerHTML = '讀取中...';
@@ -736,136 +715,14 @@
                 list.innerHTML = '';
                 snap.forEach(doc => {
                     const u = doc.data();
-                    list.innerHTML += `
-                        <label class="flex items-center space-x-2 text-sm p-1 hover:bg-gray-50 rounded cursor-pointer">
-                            <input type="checkbox" value="${doc.id}" class="fine-user-check form-checkbox text-red-600 rounded">
-                            <span>${u.name}</span>
-                        </label>
-                    `;
+                    list.innerHTML += `<label class="flex items-center space-x-2 text-sm p-1 hover:bg-gray-50 rounded cursor-pointer"><input type="checkbox" value="${doc.id}" class="fine-user-check form-checkbox text-red-600 rounded"><span>${u.name}</span></label>`;
                 });
             } catch (e) { list.innerHTML = '讀取失敗'; }
         }
-        
-        window.manualAddUser = async () => {
-            const name = document.getElementById('manual-user-name').value.trim();
-            let uid = document.getElementById('manual-user-uid').value.trim();
-            
-            if(!name) return alert('請輸入姓名');
-            if(!uid) {
-                uid = 'manual_' + Date.now();
-            }
-            
-            try {
-                await setDoc(getDocRef('users', uid), {
-                    name: name,
-                    role: 'Manual',
-                    createdAt: serverTimestamp()
-                }, { merge: true });
-                
-                document.getElementById('manual-user-name').value = '';
-                document.getElementById('manual-user-uid').value = '';
-                alert('已加入');
-            } catch(e) {
-                alert('加入失敗: ' + e.message);
-            }
-        };
-
-        // Add task row dynamic
-        window.addTaskRow = () => {
-            const div = document.createElement('div');
-            // 手機版使用 flex-col 垂直排列，大螢幕使用 sm:flex-row 水平排列
-            div.className = "flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0";
-            div.innerHTML = `
-                <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
-                <div class="flex gap-2">
-                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
-                    <button onclick="this.closest('.task-row').remove()" class="text-red-500 px-2"><i class="fa-solid fa-xmark"></i></button>
-                </div>
-            `;
-            document.getElementById('task-inputs').appendChild(div);
-        };
-
-        // NEW: Toggle fine form visibility
-        window.toggleFineForm = () => {
-            const content = document.getElementById('fine-form-content');
-            const arrow = document.getElementById('fine-form-arrow');
-            content.classList.toggle('hidden');
-            if (content.classList.contains('hidden')) {
-                arrow.style.transform = 'rotate(0deg)';
-            } else {
-                arrow.style.transform = 'rotate(180deg)';
-            }
-        };
-        
-        // JS listeners for custom date inputs in fine form
-        ['fine-start', 'fine-end'].forEach(id => {
-            document.getElementById(id).addEventListener('change', function() {
-                const display = document.getElementById(id + '-display-text');
-                if (this.value) {
-                    display.textContent = this.value.replace(/-/g, '/');
-                    display.classList.remove('text-gray-400');
-                    display.classList.add('text-gray-800');
-                } else {
-                    display.textContent = id === 'fine-start' ? '開始日期' : '結束日期';
-                     display.classList.add('text-gray-400');
-                     display.classList.remove('text-gray-800');
-                }
-            });
-        });
-
-        window.createFineEvent = async () => {
-            const title = document.getElementById('fine-title').value;
-            const start = document.getElementById('fine-start').value;
-            const end = document.getElementById('fine-end').value;
-            if(!title || !start || !end) return alert('請填寫完整資訊');
-
-            const tasks = [];
-            document.querySelectorAll('.task-row').forEach((row, idx) => {
-                const name = row.querySelector('.task-name').value;
-                const amt = row.querySelector('.task-fine').value;
-                if(name && amt) tasks.push({id: 't'+idx, name, amount: parseInt(amt)});
-            });
-            
-            const participants = [];
-            document.querySelectorAll('.fine-user-check:checked').forEach(cb => {
-                participants.push({uid: cb.value, name: cb.nextElementSibling.textContent});
-            });
-
-            if(!tasks.length || !participants.length) return alert('至少需有一個任務與一位參加者');
-
-            await addDoc(getColRef('fine_events'), {
-                title, startDate: start, endDate: end, tasks, participants,
-                createdAt: serverTimestamp()
-            });
-            alert('建立成功');
-            
-            // Clear form
-            document.getElementById('fine-title').value = '';
-            document.getElementById('fine-start').value = '';
-            document.getElementById('fine-end').value = '';
-            // Reset dates display
-            document.getElementById('fine-start-display-text').textContent = '開始日期';
-            document.getElementById('fine-start-display-text').classList.add('text-gray-400');
-             document.getElementById('fine-end-display-text').textContent = '結束日期';
-            document.getElementById('fine-end-display-text').classList.add('text-gray-400');
-            
-            // Reset tasks (keep 1)
-            const taskContainer = document.getElementById('task-inputs');
-            taskContainer.innerHTML = '';
-             window.addTaskRow(); // Add one back
-             
-             // Uncheck users
-             document.querySelectorAll('.fine-user-check').forEach(cb => cb.checked = false);
-             
-             // Close toggle
-             window.toggleFineForm();
-        };
-
         window.loadFineDashboard = function() {
             document.getElementById('fine-dashboard-view').classList.remove('hidden');
             document.getElementById('fine-detail-view').classList.add('hidden');
             if(unsubFineRecords) unsubFineRecords();
-
             const q = query(getColRef('fine_events'), orderBy('createdAt', 'desc'));
             unsubFineEvents = onSnapshot(q, (snap) => {
                 const list = document.getElementById('fine-events-list');
@@ -873,148 +730,263 @@
                 snap.forEach(doc => {
                     const d = doc.data();
                     const delBtn = isAdmin ? `<button onclick="window.delFineEvent('${doc.id}', event)" class="text-gray-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash"></i></button>` : '';
-                    list.innerHTML += `
-                        <div onclick="loadFineDetail('${doc.id}')" class="bg-white p-5 rounded-xl shadow cursor-pointer border-l-4 border-red-500 flex justify-between items-center hover:bg-red-50">
-                            <div>
-                                <h3 class="font-bold text-lg text-gray-800">${d.title}</h3>
-                                <p class="text-xs text-gray-500">${d.startDate} ~ ${d.endDate}</p>
-                            </div>
-                            ${delBtn}
-                        </div>
-                    `;
+                    list.innerHTML += `<div onclick="loadFineDetail('${doc.id}')" class="bg-white p-5 rounded-xl shadow cursor-pointer border-l-4 border-red-500 flex justify-between items-center hover:bg-red-50"><div><h3 class="font-bold text-lg text-gray-800">${d.title}</h3><p class="text-xs text-gray-500">${d.startDate} ~ ${d.endDate}</p></div>${delBtn}</div>`;
                 });
             });
         }
-
-        window.delFineEvent = async (id, e) => {
-            e.stopPropagation();
-            if(confirm('刪除此活動?')) await deleteDoc(getDocRef('fine_events', id));
-        };
-
         window.loadFineDetail = async (id) => {
             const docSnap = await getDoc(getDocRef('fine_events', id));
             if (!docSnap.exists()) return;
             currentFineEvent = {id, ...docSnap.data()};
-            
             document.getElementById('fine-dashboard-view').classList.add('hidden');
             document.getElementById('fine-detail-view').classList.remove('hidden');
-            
             document.getElementById('fd-title').textContent = currentFineEvent.title;
             document.getElementById('fd-dates').textContent = `${currentFineEvent.startDate} ~ ${currentFineEvent.endDate}`;
-            
             renderDailyCheck();
             calculateAndRenderStats();
         };
 
-        function renderDailyCheck() {
-            const area = document.getElementById('daily-check-area');
-            const todayStr = new Date().toISOString().split('T')[0];
-            document.getElementById('today-date-str').textContent = todayStr;
+        // --- LESSON APP LOGIC (New) ---
+        let lessonSelectedUid = null;
+        let lessonSelectedDate = null;
+        
+        function initLessonApp() {
+            document.getElementById('main-menu-container').classList.add('hidden');
+            document.getElementById('lesson-app-container').classList.remove('hidden');
             
-            // Check if today is within range
-            if (todayStr < currentFineEvent.startDate || todayStr > currentFineEvent.endDate) {
-                area.innerHTML = '<p class="text-gray-500">非活動期間</p>';
-                return;
-            }
+            // Auto delete old
+            cleanupOldLessons();
 
-            // Check if current user is participant
-            const me = currentFineEvent.participants.find(p => p.uid === currentUser.uid);
-            if (!me) {
-                area.innerHTML = '<p class="text-gray-500">您不是此活動的參加者</p>';
-                return;
-            }
-
-            // Listen to my record for today
-            const recordId = `${currentFineEvent.id}_${todayStr}_${currentUser.uid}`;
-            const ref = getDocRef('fine_records', recordId);
-            
-            onSnapshot(ref, (snap) => {
-                const data = snap.exists() ? snap.data() : { completed: [] };
-                let html = '';
-                currentFineEvent.tasks.forEach(t => {
-                    const checked = data.completed && data.completed.includes(t.id) ? 'checked' : '';
-                    html += `
-                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
-                            <input type="checkbox" onchange="toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
-                            <span class="ml-3 font-medium text-gray-700">${t.name}</span>
-                        </label>
-                    `;
+            // Setup User Selector
+            const userSelect = document.getElementById('lesson-user-select');
+            userSelect.innerHTML = '<option>載入中...</option>';
+            getDocs(getColRef('users')).then(snap => {
+                userSelect.innerHTML = '';
+                let hasMe = false;
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const opt = document.createElement('option');
+                    opt.value = doc.id;
+                    opt.textContent = u.name;
+                    if(doc.id === currentUser.uid) { 
+                        opt.selected = true; 
+                        hasMe = true;
+                    }
+                    userSelect.appendChild(opt);
                 });
-                area.innerHTML = html;
+                if(!hasMe) { // Just in case
+                    const opt = document.createElement('option');
+                    opt.value = currentUser.uid;
+                    opt.textContent = displayName;
+                    opt.selected = true;
+                    userSelect.appendChild(opt);
+                }
+                
+                // Trigger load
+                lessonSelectedUid = userSelect.value;
+                loadLessonData();
+                loadLessonHistory(lessonSelectedUid);
             });
+            
+            userSelect.onchange = () => {
+                lessonSelectedUid = userSelect.value;
+                loadLessonData();
+                loadLessonHistory(lessonSelectedUid);
+            };
+
+            // Set Date to Today default
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('lesson-date').value = today;
+            document.getElementById('lesson-date-display').textContent = today.replace(/-/g, '/');
+            lessonSelectedDate = today;
         }
 
-        window.toggleTask = async (recId, taskId, isDone) => {
-            const ref = getDocRef('fine_records', recId);
-            const snap = await getDoc(ref);
-            if (!snap.exists()) {
-                if (isDone) await setDoc(ref, { completed: [taskId] });
+        window.loadLessonData = async () => {
+            const dateInput = document.getElementById('lesson-date');
+            lessonSelectedDate = dateInput.value || new Date().toISOString().split('T')[0];
+            const msg = document.getElementById('lesson-msg');
+            msg.textContent = '讀取中...';
+            
+            // Reset UI
+            document.querySelectorAll('.l-input').forEach(i => i.value = '');
+            const overlay = document.getElementById('lesson-overlay');
+            const saveBtn = document.getElementById('save-lesson-btn');
+            
+            // Check Permission
+            if (lessonSelectedUid !== currentUser.uid) {
+                overlay.classList.remove('hidden'); // Read-only overlay
+                saveBtn.classList.add('hidden');
             } else {
-                if (isDone) await updateDoc(ref, { completed: arrayUnion(taskId) });
-                else await updateDoc(ref, { completed: arrayRemove(taskId) });
+                overlay.classList.add('hidden');
+                saveBtn.classList.remove('hidden');
+            }
+            
+            // Query: daily_lessons where uid == selectedUid AND date == selectedDate
+            // Note: Composite index might be needed for where(uid) + where(date).
+            // To avoid index, we can make ID = uid_date
+            const docId = `${lessonSelectedUid}_${lessonSelectedDate}`;
+            const ref = getDocRef('daily_lessons', docId);
+            
+            try {
+                const snap = await getDoc(ref);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    const inputs = document.querySelectorAll('#gratitude-inputs input');
+                    if(data.gratitudes) data.gratitudes.forEach((txt, i) => { if(inputs[i]) inputs[i].value = txt; });
+                    document.getElementById('carebook-input').value = data.careBook || '';
+                    document.getElementById('todo-input').value = data.todo || '';
+                    msg.textContent = '';
+                } else {
+                    msg.textContent = '無資料';
+                }
+            } catch (e) {
+                console.error(e);
+                msg.textContent = '讀取錯誤';
             }
         };
 
-        async function calculateAndRenderStats() {
-            const q = query(getColRef('fine_records'), 
-                where('__name__', '>=', `${currentFineEvent.id}_`), 
-                where('__name__', '<=', `${currentFineEvent.id}_\uf8ff`));
+        window.saveLesson = async () => {
+            const btn = document.getElementById('save-lesson-btn');
+            btn.disabled = true;
+            btn.textContent = '儲存中...';
+            
+            const gratitudes = [];
+            document.querySelectorAll('#gratitude-inputs input').forEach(i => gratitudes.push(i.value));
+            const careBook = document.getElementById('carebook-input').value;
+            const todo = document.getElementById('todo-input').value;
+            
+            const docId = `${currentUser.uid}_${lessonSelectedDate}`;
+            
+            try {
+                await setDoc(getDocRef('daily_lessons', docId), {
+                    uid: currentUser.uid,
+                    date: lessonSelectedDate,
+                    creatorName: displayName,
+                    gratitudes,
+                    careBook,
+                    todo,
+                    createdAt: serverTimestamp()
+                });
+                document.getElementById('lesson-msg').textContent = '已儲存!';
+                loadLessonHistory(currentUser.uid); // Refresh history
+            } catch (e) {
+                alert('儲存失敗: ' + e.message);
+            }
+            btn.disabled = false;
+            btn.textContent = '儲存';
+        };
+
+        async function cleanupOldLessons() {
+            // Delete data older than 60 days
+            const d = new Date();
+            d.setDate(d.getDate() - 60);
+            const dateStr = d.toISOString().split('T')[0];
+            
+            // Query only my own old lessons to avoid permission issues, 
+            // or rely on a scheduled function (which we don't have here).
+            // Client-side cleanup is imperfect but works for personal data maintenance.
+            const q = query(getColRef('daily_lessons'), 
+                where('uid', '==', currentUser.uid), 
+                where('date', '<', dateStr));
             
             const snap = await getDocs(q);
-            const recordsMap = {}; 
-            snap.forEach(d => {
-                const parts = d.id.split('_'); 
-                const uid = parts.slice(2).join('_');
-                const date = parts[1];
-                if(!recordsMap[uid]) recordsMap[uid] = {};
-                recordsMap[uid][date] = d.data().completed || [];
-            });
-
-            // Calculate Date Array
-            const dates = [];
-            let curr = new Date(currentFineEvent.startDate);
-            const end = new Date(currentFineEvent.endDate);
-            const today = new Date();
-            const calcEnd = end < today ? end : today; 
-            
-            for(let d = new Date(curr); d <= calcEnd; d.setDate(d.getDate()+1)) {
-                dates.push(d.toISOString().split('T')[0]);
+            if(!snap.empty) {
+                const batch = writeBatch(db);
+                snap.forEach(doc => batch.delete(doc.ref));
+                await batch.commit();
+                console.log('Cleaned up old lessons');
             }
-
-            // Build Table Header
-            const thead = document.getElementById('stats-header');
-            let headerHTML = '<th class="px-4 py-3 bg-gray-50 whitespace-nowrap">姓名</th>';
-            currentFineEvent.tasks.forEach(t => {
-                headerHTML += `<th class="px-4 py-3 text-center bg-gray-50 text-red-600 whitespace-nowrap">${t.name}<br><span class="text-xs">未完成</span></th>`;
-            });
-            headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold whitespace-nowrap">總罰金</th>';
-            thead.innerHTML = headerHTML;
-
-            // Build Body
-            const tbody = document.getElementById('stats-body');
-            tbody.innerHTML = '';
-            
-            currentFineEvent.participants.forEach(p => {
-                const userRecs = recordsMap[p.uid] || {};
-                let rowHTML = `<td class="px-4 py-3 font-medium text-gray-900 border-b whitespace-nowrap">${p.name}</td>`;
-                let totalFine = 0;
-
-                currentFineEvent.tasks.forEach(t => {
-                    let missCount = 0;
-                    dates.forEach(date => {
-                        const done = userRecs[date] && userRecs[date].includes(t.id);
-                        if (!done) missCount++;
-                    });
-                    const fine = missCount * t.amount;
-                    totalFine += fine;
-                    rowHTML += `<td class="px-4 py-3 text-center border-b text-gray-600 whitespace-nowrap">${missCount} <span class="text-xs text-gray-400">($${fine})</span></td>`;
-                });
-                
-                rowHTML += `<td class="px-4 py-3 text-right border-b font-bold text-red-600 whitespace-nowrap">$${totalFine}</td>`;
-                tbody.innerHTML += `<tr>${rowHTML}</tr>`;
-            });
         }
-
+        
+        async function loadLessonHistory(uid) {
+            const list = document.getElementById('lesson-history-list');
+            list.innerHTML = '<p class="text-gray-400 text-sm col-span-full">載入中...</p>';
+            
+            const q = query(getColRef('daily_lessons'), where('uid', '==', uid), orderBy('date', 'desc'), limit(60));
+            try {
+                const snap = await getDocs(q);
+                list.innerHTML = '';
+                if(snap.empty) {
+                    list.innerHTML = '<p class="text-gray-400 text-sm col-span-full">尚無紀錄</p>';
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const d = doc.data();
+                    list.innerHTML += `
+                        <label class="flex items-center p-2 bg-white rounded border cursor-pointer hover:bg-teal-50">
+                            <input type="checkbox" value="${doc.id}" class="lesson-export-check form-checkbox text-teal-600 rounded mr-2">
+                            <span class="text-sm text-gray-700">${d.date}</span>
+                        </label>
+                    `;
+                });
+            } catch(e) { console.error(e); }
+        }
+        
+        window.toggleAllLessons = (checked) => {
+            document.querySelectorAll('.lesson-export-check').forEach(c => c.checked = checked);
+        };
+        
+        window.exportSelectedLessons = async () => {
+            const checked = document.querySelectorAll('.lesson-export-check:checked');
+            if(checked.length === 0) return alert('請選擇日期');
+            
+            const container = document.getElementById('export-canvas-container');
+            container.innerHTML = ''; // Clear previous
+            
+            for(const box of checked) {
+                const docId = box.value;
+                const snap = await getDoc(getDocRef('daily_lessons', docId));
+                if(!snap.exists()) continue;
+                const d = snap.data();
+                
+                // Build Card HTML
+                const card = document.createElement('div');
+                card.className = 'lesson-export-card';
+                card.innerHTML = `
+                    <h1 style="color:#0f766e; font-size:24px; font-weight:bold; margin-bottom:10px; border-bottom: 2px solid #0f766e; padding-bottom:10px;">${d.date} 每日定課 - ${d.creatorName}</h1>
+                    
+                    <div style="margin-bottom:20px;">
+                        <h3 style="color:#0f766e; font-size:18px; margin-bottom:5px;">每日五感恩</h3>
+                        <ul style="list-style:none; padding:0;">
+                            ${d.gratitudes.map((t,i) => `<li style="margin-bottom:5px; font-size:16px;">${i+1}. ${t || '...'}</li>`).join('')}
+                        </ul>
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <h3 style="color:#0f766e; font-size:18px; margin-bottom:5px;">關心書</h3>
+                        <p style="white-space:pre-wrap; font-size:16px; line-height:1.5;">${d.careBook || '無'}</p>
+                    </div>
+                    
+                    <div>
+                        <h3 style="color:#0f766e; font-size:18px; margin-bottom:5px;">To-do</h3>
+                        <p style="white-space:pre-wrap; font-size:16px; line-height:1.5;">${d.todo || '無'}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+                
+                // Render
+                try {
+                    const canvas = await html2canvas(card);
+                    const link = document.createElement('a');
+                    link.download = `${d.creatorName}_每日定課_${d.date}.jpg`;
+                    link.href = canvas.toDataURL('image/jpeg');
+                    link.click();
+                } catch(err) { console.error('Export fail', err); }
+            }
+            container.innerHTML = ''; // Cleanup
+        };
+        
+        // Pass functions to global for HTML access
+        window.addTaskRow = addTaskRow;
+        window.createFineEvent = createFineEvent;
+        window.delFineEvent = delFineEvent;
+        window.delVote = delVote;
+        window.delVoteItem = delVoteItem;
+        window.doVote = doVote;
+        window.manualAddUser = manualAddUser;
+        window.toggleFineForm = toggleFineForm;
+        window.toggleTask = toggleTask;
     </script>
 </body>
 </html>
