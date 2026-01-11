@@ -207,7 +207,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <button onclick="addTaskRow()" class="text-sm text-blue-600 mt-3 hover:underline flex items-center"><i class="fa-solid fa-plus mr-1"></i> 增加任務</button>
+                            <button onclick="window.addTaskRow()" class="text-sm text-blue-600 mt-3 hover:underline flex items-center"><i class="fa-solid fa-plus mr-1"></i> 增加任務</button>
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
@@ -219,12 +219,12 @@
                                     <input type="text" id="manual-user-name" placeholder="姓名" class="border rounded px-2 py-1 text-sm w-full sm:w-1/3">
                                     <div class="flex gap-2 w-full sm:flex-1">
                                         <input type="text" id="manual-user-uid" placeholder="UID" class="border rounded px-2 py-1 text-sm flex-1">
-                                        <button onclick="manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 whitespace-nowrap">加入</button>
+                                        <button onclick="window.manualAddUser()" class="bg-gray-600 text-white px-3 py-1 rounded text-sm hover:bg-gray-700 whitespace-nowrap">加入</button>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <button onclick="createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
+                        <button onclick="window.createFineEvent()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-bold w-full">建立活動</button>
                     </div>
                 </div>
                 <div class="mb-4"><h2 class="text-xl font-bold text-gray-800">進行中的任務</h2></div>
@@ -259,7 +259,7 @@
         </header>
 
         <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 頂部功能列: 選擇人員 + 新增按鈕 + 日期 -->
+            <!-- 頂部功能列: 選擇人員 + 新增按鈕 -->
             <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-teal-500">
                 <div class="flex items-center gap-2 w-full md:w-auto">
                     <label class="text-sm font-bold text-gray-600">查看人員:</label>
@@ -269,18 +269,9 @@
                 </div>
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
                      <!-- 新增按鈕 -->
-                     <button onclick="window.openLessonForm()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition-colors flex items-center">
+                     <button id="lesson-add-btn" onclick="window.openLessonForm()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition-colors flex items-center hidden">
                         <i class="fa-solid fa-plus mr-1"></i> 新增/編輯
                      </button>
-
-                     <!-- 自定義日期選擇器 -->
-                     <div class="relative w-full md:w-48 group cursor-pointer" onclick="try{document.getElementById('lesson-date').showPicker()}catch(e){document.getElementById('lesson-date').focus()}">
-                        <input type="date" id="lesson-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
-                        <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[38px] transition-colors border-gray-300">
-                            <span id="lesson-date-display" class="text-gray-800 text-sm select-none">今天</span>
-                            <i class="fa-regular fa-calendar text-teal-500"></i>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -302,9 +293,7 @@
                     </div>
                     
                     <!-- 分頁控制 -->
-                    <div class="flex justify-center mt-6 gap-2" id="lesson-pagination">
-                        <!-- JS render pagination -->
-                    </div>
+                    <div class="flex justify-center mt-6 gap-2" id="lesson-pagination"></div>
                 </div>
             </div>
 
@@ -319,8 +308,15 @@
                 <div class="bg-white rounded-xl shadow-lg p-6 mb-8 relative">
                     <div id="lesson-overlay" class="absolute inset-0 bg-gray-100/50 z-10 hidden flex items-center justify-center rounded-xl cursor-not-allowed"></div>
                     
-                    <div class="text-center mb-6 border-b pb-4">
-                        <h2 class="text-xl font-bold text-gray-800" id="form-date-title">YYYY/MM/DD</h2>
+                    <!-- 日期選擇區塊 -->
+                    <div class="text-center mb-6 border-b pb-4 flex justify-center">
+                        <div class="relative w-48 group cursor-pointer" onclick="try{document.getElementById('lesson-form-date').showPicker()}catch(e){document.getElementById('lesson-form-date').focus()}">
+                            <input type="date" id="lesson-form-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
+                            <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[38px] transition-colors border-gray-300 hover:border-teal-500">
+                                <span id="lesson-form-date-display" class="text-gray-800 text-lg font-bold select-none">今天</span>
+                                <i class="fa-regular fa-calendar text-teal-500"></i>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-6">
@@ -431,14 +427,13 @@
         });
         
         // Date Pickers Listeners
-        ['new-vote-date', 'fine-start', 'fine-end', 'lesson-date'].forEach(id => {
+        ['new-vote-date', 'fine-start', 'fine-end', 'lesson-form-date'].forEach(id => {
             const el = document.getElementById(id);
             if(el) {
                 el.addEventListener('change', function() {
-                    const suffix = id === 'lesson-date' ? '-display' : (id === 'new-vote-date' ? '-display-text' : '-display-text');
-                    const display = document.getElementById(id.replace('new-vote-date', 'date').replace('fine-start', 'fine-start').replace('fine-end', 'fine-end') + (id === 'lesson-date' ? '-display' : '-display-text'));
-                    
-                    // Specific fix for vote date
+                    const suffix = id === 'lesson-form-date' ? '-display' : (id === 'new-vote-date' ? '-display-text' : '-display-text');
+                    const displayId = id.replace('new-vote-date', 'date').replace('fine-start', 'fine-start').replace('fine-end', 'fine-end') + suffix;
+                    const display = document.getElementById(displayId);
                     let targetDisplay = display;
                     if(id === 'new-vote-date') targetDisplay = document.getElementById('date-display-text');
 
@@ -447,9 +442,12 @@
                         targetDisplay.textContent = formattedDate;
                         targetDisplay.classList.remove('text-gray-400');
                         targetDisplay.classList.add('text-gray-800');
-                        if(id === 'lesson-date') loadLessonData();
+                        if(id === 'lesson-form-date') {
+                             lessonSelectedDate = this.value;
+                             window.loadLessonData();
+                        }
                     } else {
-                         if(id === 'lesson-date') targetDisplay.textContent = '今天';
+                         if(id === 'lesson-form-date') targetDisplay.textContent = '今天';
                          else if(id === 'new-vote-date') targetDisplay.textContent = '年/月/日';
                          else targetDisplay.textContent = id === 'fine-start' ? '開始日期' : '結束日期';
                          targetDisplay.classList.add('text-gray-400');
@@ -797,7 +795,7 @@
                     const checked = data.completed && data.completed.includes(t.id) ? 'checked' : '';
                     html += `
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
-                            <input type="checkbox" onchange="toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
+                            <input type="checkbox" onchange="window.toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
                             <span class="ml-3 font-medium text-gray-700">${t.name}</span>
                         </label>
                     `;
@@ -926,33 +924,66 @@
                 lessonSelectedUid = userSelect.value;
                 showLessonListView();
             };
-
-            // Set Date to Today default
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('lesson-date').value = today;
-            document.getElementById('lesson-date-display').textContent = today.replace(/-/g, '/');
-            lessonSelectedDate = today;
         }
 
         function showLessonListView() {
             document.getElementById('lesson-list-view').classList.remove('hidden');
             document.getElementById('lesson-form-view').classList.add('hidden');
+            
+            const addBtn = document.getElementById('lesson-add-btn');
+            if(addBtn) {
+                if (lessonSelectedUid === currentUser.uid) {
+                    addBtn.classList.remove('hidden');
+                } else {
+                    addBtn.classList.add('hidden');
+                }
+            }
+
             loadLessonHistoryList(lessonSelectedUid);
         }
 
         window.openLessonForm = (date = null) => {
-            const d = date || document.getElementById('lesson-date').value || new Date().toISOString().split('T')[0];
+            const d = date || new Date().toISOString().split('T')[0]; // Default to today if null (Add button)
             lessonSelectedDate = d;
             
             document.getElementById('lesson-list-view').classList.add('hidden');
             document.getElementById('lesson-form-view').classList.remove('hidden');
             document.getElementById('form-date-title').textContent = d.replace(/-/g, '/');
             
-            // Reset Date Picker text if opened via Add button
-            document.getElementById('lesson-date').value = d;
-            document.getElementById('lesson-date-display').textContent = d.replace(/-/g, '/');
+            // Reset Date Picker text in Form
+            const formDateInput = document.getElementById('lesson-form-date');
+            const formDateDisplay = document.getElementById('lesson-form-date-display');
+            if(formDateInput) {
+                formDateInput.value = d;
+                // If it's today, show "Today" text? Or just date?
+                // Request said default to today. If user picks, show date.
+                // Let's show date string to be clear.
+                formDateDisplay.textContent = d.replace(/-/g, '/');
+                formDateDisplay.classList.remove('text-gray-400');
+                formDateDisplay.classList.add('text-gray-800');
+            }
             
-            loadLessonData();
+            // If viewing other's record (via clicking card), disable editing
+            // But openLessonForm is called by clicking card OR add button.
+            // If add button -> lessonSelectedUid is me.
+            // If clicking card -> lessonSelectedUid could be others.
+            
+            const saveBtn = document.getElementById('save-lesson-btn');
+            const overlay = document.getElementById('lesson-overlay');
+            const datePickerDiv = document.querySelector('#lesson-form-date').parentNode; // The relative wrapper
+            
+            if (lessonSelectedUid !== currentUser.uid) {
+                overlay.classList.remove('hidden'); // Read-only overlay on inputs
+                saveBtn.classList.add('hidden');
+                // Disable date picker interaction
+                datePickerDiv.style.pointerEvents = 'none';
+            } else {
+                overlay.classList.add('hidden');
+                saveBtn.classList.remove('hidden');
+                datePickerDiv.style.pointerEvents = 'auto';
+            }
+
+            window.loadLessonData();
         };
 
         window.closeLessonForm = () => {
@@ -967,19 +998,7 @@
             
             // Reset UI
             document.querySelectorAll('.l-input').forEach(i => i.value = '');
-            const overlay = document.getElementById('lesson-overlay');
-            const saveBtn = document.getElementById('save-lesson-btn');
             
-            // Check Permission
-            if (lessonSelectedUid !== currentUser.uid) {
-                overlay.classList.remove('hidden'); // Read-only overlay
-                saveBtn.classList.add('hidden');
-            } else {
-                overlay.classList.add('hidden');
-                saveBtn.classList.remove('hidden');
-            }
-            
-            // Query by ID (uid_date) to avoid composite index
             const docId = `${lessonSelectedUid}_${lessonSelectedDate}`;
             const ref = getDocRef('daily_lessons', docId);
             
@@ -1024,6 +1043,7 @@
                     createdAt: serverTimestamp()
                 });
                 document.getElementById('lesson-msg').textContent = '已儲存!';
+                loadLessonHistory(currentUser.uid); // Refresh history
             } catch (e) {
                 alert('儲存失敗: ' + e.message);
             }
@@ -1088,7 +1108,6 @@
             listContainer.innerHTML = '';
             
             pageItems.forEach(d => {
-                // Card content preview
                 const gPreview = d.gratitudes.filter(t=>t).length;
                 const cbPreview = d.careBook ? '有' : '無';
                 const todoPreview = d.todo ? '有' : '無';
@@ -1108,7 +1127,6 @@
                 `;
             });
             
-            // Pagination UI
             const totalPages = Math.ceil(currentLessonList.length / LESSON_PER_PAGE);
             const pagContainer = document.getElementById('lesson-pagination');
             pagContainer.innerHTML = '';
