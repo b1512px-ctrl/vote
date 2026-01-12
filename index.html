@@ -85,7 +85,6 @@
                 <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-        <!-- 修正：電腦版 grid-cols-2 (兩個一排) -->
         <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-6 content-start">
             <div onclick="window.switchApp('vote')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
                 <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
@@ -1297,6 +1296,35 @@
             // Reset UI
             document.querySelectorAll('.l-input').forEach(i => i.value = '');
             
+            // NEW LOGIC START
+            const saveBtn = document.getElementById('save-lesson-btn');
+            const overlay = document.getElementById('lesson-overlay');
+            const datePickerDiv = document.querySelector('#lesson-form-date').parentNode;
+            
+            const isMe = (lessonSelectedUid === currentUser.uid);
+            const isToday = (lessonSelectedDate === getLocalTodayStr());
+
+            if (isMe) {
+                 // My record
+                 datePickerDiv.style.pointerEvents = 'auto'; // I can change date
+                 if (isToday) {
+                     // Today: Editable
+                     overlay.classList.add('hidden');
+                     saveBtn.classList.remove('hidden');
+                 } else {
+                     // Not Today: Read-only
+                     overlay.classList.remove('hidden');
+                     saveBtn.classList.add('hidden');
+                     msg.textContent = '非今日定課僅供查看'; // Feedback
+                 }
+            } else {
+                 // Others' record: Always Read-only
+                 datePickerDiv.style.pointerEvents = 'none'; 
+                 overlay.classList.remove('hidden');
+                 saveBtn.classList.add('hidden');
+            }
+            // NEW LOGIC END
+            
             const docId = `${lessonSelectedUid}_${lessonSelectedDate}`;
             const ref = getDocRef('daily_lessons', docId);
             
@@ -1308,9 +1336,11 @@
                     if(data.gratitudes) data.gratitudes.forEach((txt, i) => { if(inputs[i]) inputs[i].value = txt; });
                     document.getElementById('carebook-input').value = data.careBook || '';
                     document.getElementById('todo-input').value = data.todo || '';
-                    msg.textContent = '';
+                    if(isMe && !isToday) msg.textContent = '非今日定課僅供查看';
+                    else msg.textContent = '';
                 } else {
-                    msg.textContent = '無資料';
+                    if(isMe && !isToday) msg.textContent = '無資料 (非今日不可新增)';
+                    else msg.textContent = '無資料';
                 }
             } catch (e) {
                 console.error(e);
