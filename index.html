@@ -6,7 +6,6 @@
     <title>多人活動平台 (整合版)</title>
     
     <script>
-        // 忽略 Tailwind CDN 的警告
         (function() {
             const originalWarn = console.warn;
             console.warn = function(...args) {
@@ -97,6 +96,7 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
                 <p class="text-gray-500 text-sm">追蹤任務執行與罰款計算。</p>
             </div>
+            <!-- 新增每日定課 -->
             <div onclick="window.switchApp('lesson')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-teal-500 transition-all group">
                 <div class="text-teal-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open-reader"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">每日定課</h2>
@@ -121,15 +121,24 @@
              <div id="vote-dashboard-view">
                  <!-- 柱專用設定 -->
                  <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center mb-4">
                         <div class="flex items-center"><i class="fa-solid fa-gears text-indigo-600 text-xl mr-3"></i><div><h3 class="font-bold text-gray-800">系統管理</h3><p class="text-xs text-gray-500">成員註冊開關</p></div></div>
                         <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
                             <input type="checkbox" name="toggle" id="reg-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
                             <label for="reg-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
                         </div>
                     </div>
-                    <p id="reg-status-text" class="text-right text-xs mt-1 text-gray-500">讀取中...</p>
+                    <p id="reg-status-text" class="text-right text-xs mt-1 text-gray-500 mb-4 border-b pb-2">讀取中...</p>
+                    
+                    <!-- 新增：使用者名單管理 -->
+                    <div class="mt-4">
+                        <h4 class="font-bold text-gray-700 mb-2 text-sm">使用者名單管理 (刪除無效帳號)</h4>
+                        <div id="admin-user-list" class="max-h-40 overflow-y-auto border rounded bg-gray-50 p-2 space-y-1">
+                            <p class="text-xs text-gray-400">載入中...</p>
+                        </div>
+                    </div>
                 </div>
+                
                 <div id="create-event-section" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 hidden">
                     <h2 class="text-lg font-semibold mb-4 text-gray-700">發起新活動</h2>
                     <div class="flex flex-col md:flex-row gap-3">
@@ -259,7 +268,7 @@
         </header>
 
         <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 頂部功能列 -->
+            <!-- 頂部功能列: 選擇人員 + 新增按鈕 -->
             <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-teal-500">
                 <div class="flex items-center gap-2 w-full md:w-auto">
                     <label class="text-sm font-bold text-gray-600">查看人員:</label>
@@ -268,18 +277,19 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                     <!-- 新增按鈕 -->
                      <button id="lesson-add-btn" onclick="window.openLessonForm()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition-colors flex items-center hidden">
                         <i class="fa-solid fa-plus mr-1"></i> 新增/編輯
                      </button>
                 </div>
             </div>
             
-            <!-- 視圖1: 列表模式 -->
+            <!-- 視圖1: 列表模式 (預設) -->
             <div id="lesson-list-view">
                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-6">
                     <h3 class="text-lg font-bold text-gray-600 mb-4 flex items-center justify-between">
                         <span><i class="fa-solid fa-list-ul mr-2"></i>定課紀錄</span>
-                        <button onclick="window.exportSelectedLessons()" class="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5 rounded transition-colors"><i class="fa-solid fa-download mr-1"></i>匯出選取</button>
+                        <button onclick="window.exportSelectedLessons()" class="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"><i class="fa-solid fa-download mr-1"></i>匯出選取</button>
                     </h3>
                     
                     <div class="flex items-center gap-2 mb-2 ml-1">
@@ -291,11 +301,12 @@
                         <p class="text-gray-400 text-sm col-span-full">載入中...</p>
                     </div>
                     
+                    <!-- 分頁控制 -->
                     <div class="flex justify-center mt-6 gap-2" id="lesson-pagination"></div>
                 </div>
             </div>
 
-            <!-- 視圖2: 表單模式 -->
+            <!-- 視圖2: 表單模式 (隱藏) -->
             <div id="lesson-form-view" class="hidden">
                 <div class="mb-4">
                     <button onclick="window.closeLessonForm()" class="text-teal-600 hover:text-teal-800 font-bold flex items-center">
@@ -433,7 +444,6 @@
                     const suffix = id === 'lesson-form-date' ? '-display' : (id === 'new-vote-date' ? '-display-text' : '-display-text');
                     const displayId = id.replace('new-vote-date', 'date').replace('fine-start', 'fine-start').replace('fine-end', 'fine-end') + suffix;
                     const display = document.getElementById(displayId);
-                    
                     let targetDisplay = display;
                     if(id === 'new-vote-date') targetDisplay = document.getElementById('date-display-text');
 
@@ -653,6 +663,9 @@
                     await setDoc(getDocRef('events', 'system_settings'), { memberRegistrationOpen: newState }, { merge: true });
                 };
             } catch(e) { console.error(e); }
+            
+            // Init System User List for Admin
+            initSystemUserList();
         }
 
         window.loadVoteDashboard = function() {
@@ -668,7 +681,7 @@
                     const d = doc.data();
                     const date = d.createdAt ? new Date(d.createdAt.toDate()).toLocaleDateString() : '';
                     const delBtn = isAdmin ? `<button onclick="window.delEvent('${doc.id}', event)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` : '';
-                    list.innerHTML += `<div onclick="loadVoteDetail('${doc.id}', '${d.title}')" class="bg-white p-4 rounded-xl shadow hover:bg-gray-50 relative border cursor-pointer"><h3 class="font-bold text-lg">${d.title}</h3><p class="text-xs text-gray-500">發起: ${d.creator} | ${date}</p>${delBtn}</div>`;
+                    list.innerHTML += `<div onclick="window.loadVoteDetail('${doc.id}', '${d.title}')" class="bg-white p-4 rounded-xl shadow hover:bg-gray-50 relative border cursor-pointer"><h3 class="font-bold text-lg">${d.title}</h3><p class="text-xs text-gray-500">發起: ${d.creator} | ${date}</p>${delBtn}</div>`;
                 });
             });
         }
@@ -725,8 +738,7 @@
             document.getElementById('new-vote-date').value = '';
             document.getElementById('new-vote-note').value = '';
             document.getElementById('date-display-text').textContent = '年/月/日';
-            // fix reset color
-             document.getElementById('date-display-text').classList.add('text-gray-400');
+            document.getElementById('date-display-text').classList.add('text-gray-400');
              document.getElementById('date-display-text').classList.remove('text-gray-800');
         };
         window.doVote = async (id, has) => {
@@ -859,7 +871,7 @@
                 snap.forEach(doc => {
                     const d = doc.data();
                     const delBtn = isAdmin ? `<button onclick="window.delFineEvent('${doc.id}', event)" class="text-gray-400 hover:text-red-500 ml-2"><i class="fa-solid fa-trash"></i></button>` : '';
-                    list.innerHTML += `<div onclick="loadFineDetail('${doc.id}')" class="bg-white p-5 rounded-xl shadow cursor-pointer border-l-4 border-red-500 flex justify-between items-center hover:bg-red-50"><div><h3 class="font-bold text-lg text-gray-800">${d.title}</h3><p class="text-xs text-gray-500">${d.startDate} ~ ${d.endDate}</p></div>${delBtn}</div>`;
+                    list.innerHTML += `<div onclick="window.loadFineDetail('${doc.id}')" class="bg-white p-5 rounded-xl shadow cursor-pointer border-l-4 border-red-500 flex justify-between items-center hover:bg-red-50"><div><h3 class="font-bold text-lg text-gray-800">${d.title}</h3><p class="text-xs text-gray-500">${d.startDate} ~ ${d.endDate}</p></div>${delBtn}</div>`;
                 });
             });
         }
@@ -940,6 +952,7 @@
                 recordsMap[uid][date] = d.data().completed || [];
             });
 
+            // Calculate Date Array
             const dates = [];
             let curr = new Date(currentFineEvent.startDate);
             const end = new Date(currentFineEvent.endDate);
@@ -954,6 +967,7 @@
                 dates.push(d.toISOString().split('T')[0]);
             }
 
+            // Build Table Header
             const thead = document.getElementById('stats-header');
             let headerHTML = '<th class="px-4 py-3 bg-gray-50 whitespace-nowrap">姓名</th>';
             currentFineEvent.tasks.forEach(t => {
@@ -962,6 +976,7 @@
             headerHTML += '<th class="px-4 py-3 text-right bg-gray-50 font-bold whitespace-nowrap">總罰金</th>';
             thead.innerHTML = headerHTML;
 
+            // Build Body
             const tbody = document.getElementById('stats-body');
             tbody.innerHTML = '';
             
@@ -986,9 +1001,49 @@
             });
         }
 
+        // --- ADMIN USER MANAGEMENT ---
+        function initSystemUserList() {
+            const list = document.getElementById('admin-user-list');
+            if(!list) return;
+            list.innerHTML = '<p class="text-xs text-gray-400">載入中...</p>';
+            
+            onSnapshot(getColRef('users'), (snap) => {
+                list.innerHTML = '';
+                if (snap.empty) {
+                    list.innerHTML = '<p class="text-xs text-gray-400">無使用者資料</p>';
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const item = document.createElement('div');
+                    item.className = "flex justify-between items-center text-sm p-1 hover:bg-gray-100 rounded";
+                    item.innerHTML = `
+                        <span>${u.name} <span class="text-gray-400 text-xs">(${u.role || 'Member'})</span></span>
+                        <button onclick="window.deleteSystemUser('${doc.id}', '${u.name}')" class="text-red-400 hover:text-red-600 px-2">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    `;
+                    list.appendChild(item);
+                });
+            });
+        }
+
+        window.deleteSystemUser = async (uid, name) => {
+            if(confirm(`確定要從資料庫移除「${name}」嗎？\n注意：這不會刪除 Authentication 帳號，僅刪除名單資料。`)) {
+                try {
+                    await deleteDoc(getDocRef('users', uid));
+                    alert('已移除');
+                } catch(e) {
+                    alert('移除失敗: ' + e.message);
+                }
+            }
+        };
+
         // --- LESSON APP LOGIC ---
         let lessonSelectedUid = null;
         let lessonSelectedDate = null;
+        // Pagination State
         let currentLessonList = [];
         let lessonPage = 1;
         const LESSON_PER_PAGE = 12;
@@ -1055,19 +1110,16 @@
             
             document.getElementById('lesson-list-view').classList.add('hidden');
             document.getElementById('lesson-form-view').classList.remove('hidden');
-            
-            // Update Title (Fixed: don't target deleted ID)
-            const formDateDisplay = document.getElementById('lesson-form-date-display');
-            if(formDateDisplay) {
-                formDateDisplay.textContent = d.replace(/-/g, '/');
-                formDateDisplay.classList.remove('text-gray-800'); // Remove default style
-                formDateDisplay.classList.add('text-teal-700'); // Add active style
-            }
+            document.getElementById('form-date-title').textContent = d.replace(/-/g, '/');
             
             // Reset Date Picker text in Form
             const formDateInput = document.getElementById('lesson-form-date');
+            const formDateDisplay = document.getElementById('lesson-form-date-display');
             if(formDateInput) {
                 formDateInput.value = d;
+                formDateDisplay.textContent = d.replace(/-/g, '/');
+                formDateDisplay.classList.remove('text-gray-800'); // Remove default style
+                formDateDisplay.classList.add('text-teal-700'); // Add active style
             }
             
             // If viewing other's record (via clicking card), disable editing
