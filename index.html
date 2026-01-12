@@ -85,7 +85,8 @@
                 <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 content-start">
+        <!-- 修正：電腦版 grid-cols-2 (兩個一排) -->
+        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-6 content-start">
             <div onclick="window.switchApp('vote')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
                 <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">投票功能</h2>
@@ -96,6 +97,7 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
                 <p class="text-gray-500 text-sm">追蹤任務執行與罰款計算。</p>
             </div>
+            <!-- 新增每日定課 -->
             <div onclick="window.switchApp('lesson')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-teal-500 transition-all group">
                 <div class="text-teal-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open-reader"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">每日定課</h2>
@@ -493,6 +495,7 @@
                         targetDisplay.textContent = formattedDate;
                         targetDisplay.classList.remove('text-gray-400');
                         targetDisplay.classList.add('text-gray-800');
+                        // Lesson form date change triggers reload
                         if(id === 'lesson-form-date') {
                              lessonSelectedDate = this.value;
                              window.loadLessonData();
@@ -1043,6 +1046,23 @@
                 recordsMap[uid][date] = d.data().completed || [];
             });
 
+            // NEW: Fetch daily lessons for the date range
+            const lessonMap = {}; // { uid: Set(dates) }
+            const dailyLessonTask = currentFineEvent.tasks.find(t => t.type === 'daily_lesson');
+            
+            if (dailyLessonTask) {
+                const qLessons = query(getColRef('daily_lessons'), 
+                    where('date', '>=', currentFineEvent.startDate),
+                    where('date', '<=', currentFineEvent.endDate)
+                );
+                const lessonSnap = await getDocs(qLessons);
+                lessonSnap.forEach(doc => {
+                    const data = doc.data();
+                    if (!lessonMap[data.uid]) lessonMap[data.uid] = new Set();
+                    lessonMap[data.uid].add(data.date);
+                });
+            }
+
             // Calculate Date Array
             const dates = [];
             let curr = new Date(currentFineEvent.startDate);
@@ -1055,7 +1075,11 @@
             const calcEnd = end < today ? end : today; 
             
             for(let d = new Date(curr); d <= calcEnd; d.setDate(d.getDate()+1)) {
-                dates.push(d.toISOString().split('T')[0]);
+                // Ensure YYYY-MM-DD format with local time logic
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                dates.push(`${y}-${m}-${day}`);
             }
 
             // Build Table Header
@@ -1079,7 +1103,15 @@
                 currentFineEvent.tasks.forEach(t => {
                     let missCount = 0;
                     dates.forEach(date => {
-                        const done = userRecs[date] && userRecs[date].includes(t.id);
+                        let done = userRecs[date] && userRecs[date].includes(t.id);
+                        
+                        // Override for Daily Lesson Task
+                        if (t.type === 'daily_lesson' && !done) {
+                             if (lessonMap[p.uid] && lessonMap[p.uid].has(date)) {
+                                 done = true;
+                             }
+                        }
+
                         if (!done) missCount++;
                     });
                     const fine = missCount * t.amount;
