@@ -440,8 +440,6 @@
                     const suffix = id === 'lesson-form-date' ? '-display' : (id === 'new-vote-date' ? '-display-text' : '-display-text');
                     const displayId = id.replace('new-vote-date', 'date').replace('fine-start', 'fine-start').replace('fine-end', 'fine-end') + suffix;
                     const display = document.getElementById(displayId);
-                    
-                    // Specific fix for vote date
                     let targetDisplay = display;
                     if(id === 'new-vote-date') targetDisplay = document.getElementById('date-display-text');
 
