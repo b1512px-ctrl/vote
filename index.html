@@ -118,7 +118,7 @@
                 <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足</p>
                 <p class="text-sm">操作被拒絕。請確認權限或 Firestore Rules。</p>
             </div>
-            <!-- ... Vote Dashboard & Details ... -->
+            <!-- ... Vote Dashboard & Details (content managed by JS) ... -->
              <div id="vote-dashboard-view">
                  <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
                     <div class="flex justify-between items-center">
@@ -280,7 +280,7 @@
                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-6">
                     <h3 class="text-lg font-bold text-gray-600 mb-4 flex items-center justify-between">
                         <span><i class="fa-solid fa-list-ul mr-2"></i>定課紀錄</span>
-                        <button onclick="window.exportSelectedLessons()" class="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5 rounded transition-colors"><i class="fa-solid fa-download mr-1"></i>匯出選取</button>
+                        <button onclick="window.exportSelectedLessons()" class="bg-gray-600 hover:bg-gray-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors"><i class="fa-solid fa-download mr-1"></i>匯出選取</button>
                     </h3>
                     
                     <div class="flex items-center gap-2 mb-2 ml-1">
@@ -313,7 +313,7 @@
                         <div class="relative w-48 group cursor-pointer" onclick="try{document.getElementById('lesson-form-date').showPicker()}catch(e){document.getElementById('lesson-form-date').focus()}">
                             <input type="date" id="lesson-form-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
                             <div class="w-full border rounded px-3 py-2 bg-white flex justify-between items-center h-[38px] transition-colors border-gray-300 hover:border-teal-500">
-                                <span id="lesson-form-date-display" class="text-gray-800 text-lg font-bold select-none">今天</span>
+                                <span id="lesson-form-date-display" class="text-gray-800 text-lg font-bold select-none">YYYY/MM/DD</span>
                                 <i class="fa-regular fa-calendar text-teal-500"></i>
                             </div>
                         </div>
@@ -448,7 +448,6 @@
                         targetDisplay.textContent = formattedDate;
                         targetDisplay.classList.remove('text-gray-400');
                         targetDisplay.classList.add('text-gray-800');
-                        // Lesson form date change triggers reload
                         if(id === 'lesson-form-date') {
                              lessonSelectedDate = this.value;
                              window.loadLessonData();
