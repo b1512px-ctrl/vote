@@ -118,7 +118,7 @@
                 <p class="font-bold"><i class="fa-solid fa-ban"></i> 權限不足</p>
                 <p class="text-sm">操作被拒絕。請確認權限或 Firestore Rules。</p>
             </div>
-            <!-- ... Vote Dashboard & Details (content managed by JS) ... -->
+            <!-- ... Vote Dashboard & Details ... -->
              <div id="vote-dashboard-view">
                  <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
                     <div class="flex justify-between items-center">
@@ -448,6 +448,7 @@
                         targetDisplay.textContent = formattedDate;
                         targetDisplay.classList.remove('text-gray-400');
                         targetDisplay.classList.add('text-gray-800');
+                        // Lesson form date change triggers reload
                         if(id === 'lesson-form-date') {
                              lessonSelectedDate = this.value;
                              window.loadLessonData();
@@ -1197,6 +1198,86 @@
                 } catch(err) { console.error('Export fail', err); }
             }
             container.innerHTML = ''; 
+        };
+        
+        // Add task row dynamic
+        window.addTaskRow = () => {
+            const div = document.createElement('div');
+            // 手機版使用 flex-col 垂直排列，大螢幕使用 sm:flex-row 水平排列
+            div.className = "flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0";
+            div.innerHTML = `
+                <input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 w-full sm:flex-1 task-name">
+                <div class="flex gap-2">
+                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
+                    <button onclick="this.closest('.task-row').remove()" class="text-red-500 px-2"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `;
+            document.getElementById('task-inputs').appendChild(div);
+        };
+
+        // NEW: Toggle fine form visibility
+        window.toggleFineForm = () => {
+            const content = document.getElementById('fine-form-content');
+            const arrow = document.getElementById('fine-form-arrow');
+            content.classList.toggle('hidden');
+            if (content.classList.contains('hidden')) {
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        };
+
+        window.createFineEvent = async () => {
+            const title = document.getElementById('fine-title').value;
+            const start = document.getElementById('fine-start').value;
+            const end = document.getElementById('fine-end').value;
+            if(!title || !start || !end) return alert('請填寫完整資訊');
+
+            const tasks = [];
+            document.querySelectorAll('.task-row').forEach((row, idx) => {
+                const name = row.querySelector('.task-name').value;
+                const amt = row.querySelector('.task-fine').value;
+                if(name && amt) tasks.push({id: 't'+idx, name, amount: parseInt(amt)});
+            });
+            
+            const participants = [];
+            document.querySelectorAll('.fine-user-check:checked').forEach(cb => {
+                participants.push({uid: cb.value, name: cb.nextElementSibling.textContent});
+            });
+
+            if(!tasks.length || !participants.length) return alert('至少需有一個任務與一位參加者');
+
+            await addDoc(getColRef('fine_events'), {
+                title, startDate: start, endDate: end, tasks, participants,
+                createdAt: serverTimestamp()
+            });
+            alert('建立成功');
+            
+            // Clear form
+            document.getElementById('fine-title').value = '';
+            document.getElementById('fine-start').value = '';
+            document.getElementById('fine-end').value = '';
+            // Reset dates display
+            document.getElementById('fine-start-display-text').textContent = '開始日期';
+            document.getElementById('fine-start-display-text').classList.add('text-gray-400');
+             document.getElementById('fine-end-display-text').textContent = '結束日期';
+            document.getElementById('fine-end-display-text').classList.add('text-gray-400');
+            
+            // Reset tasks (keep 1)
+            const taskContainer = document.getElementById('task-inputs');
+            taskContainer.innerHTML = '';
+             window.addTaskRow(); // Add one back
+             
+             // Uncheck users
+             document.querySelectorAll('.fine-user-check').forEach(cb => cb.checked = false);
+             
+             // Close toggle
+             window.toggleFineForm();
+        };
+
+        window.delFineEvent = async (id, e) => {
+            e.stopPropagation();
+            if(confirm('刪除此活動?')) await deleteDoc(getDocRef('fine_events', id));
         };
     </script>
 </body>
