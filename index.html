@@ -85,7 +85,7 @@
                 <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 content-center">
+        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 content-start">
             <div onclick="window.switchApp('vote')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
                 <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">投票功能</h2>
@@ -96,7 +96,6 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
                 <p class="text-gray-500 text-sm">追蹤任務執行與罰款計算。</p>
             </div>
-            <!-- 新增每日定課 -->
             <div onclick="window.switchApp('lesson')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-teal-500 transition-all group">
                 <div class="text-teal-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open-reader"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">每日定課</h2>
@@ -214,7 +213,11 @@
                                     </div>
                                 </div>
                             </div>
-                            <button onclick="window.addTaskRow()" class="text-sm text-blue-600 mt-3 hover:underline flex items-center"><i class="fa-solid fa-plus mr-1"></i> 增加任務</button>
+                            <!-- 新增任務按鈕群組 -->
+                            <div class="flex gap-2 mt-3">
+                                <button onclick="window.addTaskRow()" class="text-sm text-blue-600 hover:underline flex items-center bg-blue-50 px-3 py-1 rounded"><i class="fa-solid fa-plus mr-1"></i> 一般任務</button>
+                                <button onclick="window.addDailyLessonRow()" class="text-sm text-teal-600 hover:underline flex items-center bg-teal-50 px-3 py-1 rounded"><i class="fa-solid fa-book-open mr-1"></i> 每日定課任務</button>
+                            </div>
                         </div>
                         <div class="mb-4">
                             <h3 class="text-sm font-bold text-gray-600 mb-2">選擇參加人員 (多選)</h3>
@@ -266,7 +269,7 @@
         </header>
 
         <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 頂部功能列 -->
+            <!-- 頂部功能列: 選擇人員 + 新增按鈕 -->
             <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-teal-500">
                 <div class="flex items-center gap-2 w-full md:w-auto">
                     <label class="text-sm font-bold text-gray-600">查看人員:</label>
@@ -275,13 +278,14 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+                     <!-- 新增按鈕 -->
                      <button id="lesson-add-btn" onclick="window.openLessonForm()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition-colors flex items-center hidden">
                         <i class="fa-solid fa-plus mr-1"></i> 新增/編輯
                      </button>
                 </div>
             </div>
             
-            <!-- 視圖1: 列表模式 -->
+            <!-- 視圖1: 列表模式 (預設) -->
             <div id="lesson-list-view">
                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-6">
                     <h3 class="text-lg font-bold text-gray-600 mb-4 flex items-center justify-between">
@@ -298,6 +302,7 @@
                         <p class="text-gray-400 text-sm col-span-full">載入中...</p>
                     </div>
                     
+                    <!-- 分頁控制 -->
                     <div class="flex justify-center mt-6 gap-2" id="lesson-pagination"></div>
                 </div>
             </div>
@@ -849,6 +854,21 @@
             div.innerHTML = `<input type="text" placeholder="任務名稱" class="border rounded px-3 py-1 w-full sm:flex-1 task-name"><div class="flex gap-2"><input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine"><button onclick="this.closest('.task-row').remove()" class="text-red-500 px-2"><i class="fa-solid fa-xmark"></i></button></div>`;
             document.getElementById('task-inputs').appendChild(div);
         };
+        // New: Add Daily Lesson Row
+        window.addDailyLessonRow = () => {
+            const div = document.createElement('div');
+            div.className = "flex flex-col sm:flex-row gap-2 task-row border-b pb-3 sm:border-0 sm:pb-0 last:border-0 mb-2 sm:mb-0";
+            div.dataset.taskType = 'daily_lesson';
+            div.innerHTML = `
+                <input type="text" value="每日定課" readonly class="border rounded px-3 py-1 w-full sm:flex-1 task-name bg-gray-100 text-gray-500 cursor-not-allowed">
+                <div class="flex gap-2">
+                    <input type="number" placeholder="罰款$" class="border rounded px-3 py-1 flex-1 sm:w-24 task-fine">
+                    <button onclick="this.closest('.task-row').remove()" class="text-red-500 px-2"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+            `;
+            document.getElementById('task-inputs').appendChild(div);
+        };
+        
         window.toggleFineForm = () => {
             const content = document.getElementById('fine-form-content');
             const arrow = document.getElementById('fine-form-arrow');
@@ -881,7 +901,8 @@
             document.querySelectorAll('.task-row').forEach((row, idx) => {
                 const name = row.querySelector('.task-name').value;
                 const amt = row.querySelector('.task-fine').value;
-                if(name && amt) tasks.push({id: 't'+idx, name, amount: parseInt(amt)});
+                const type = row.dataset.taskType || 'normal';
+                if(name && amt) tasks.push({id: 't'+idx, name, amount: parseInt(amt), type});
             });
             
             const participants = [];
@@ -965,12 +986,30 @@
             onSnapshot(ref, (snap) => {
                 const data = snap.exists() ? snap.data() : { completed: [] };
                 let html = '';
+                
+                // LAZY SYNC: Check if daily lesson exists for today
+                const dailyLessonTask = currentFineEvent.tasks.find(t => t.type === 'daily_lesson');
+                if (dailyLessonTask && (!data.completed || !data.completed.includes(dailyLessonTask.id))) {
+                    // Check existence in background
+                    getDoc(getDocRef('daily_lessons', `${currentUser.uid}_${todayStr}`)).then(lessonSnap => {
+                        if(lessonSnap.exists()) {
+                            // It exists but not checked -> Sync it!
+                             window.toggleTask(recordId, dailyLessonTask.id, true);
+                        }
+                    });
+                }
+
                 currentFineEvent.tasks.forEach(t => {
                     const checked = data.completed && data.completed.includes(t.id) ? 'checked' : '';
+                    // Disable manual check for daily lesson type to encourage using the Lesson App?
+                    // Or keep enabled for manual override. Let's keep enabled.
+                    const isAuto = t.type === 'daily_lesson' ? '<span class="text-xs text-teal-600 ml-2">(自動同步)</span>' : '';
+                    
                     html += `
                         <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-green-50 transition-colors">
                             <input type="checkbox" onchange="window.toggleTask('${recordId}', '${t.id}', this.checked)" class="form-checkbox h-5 w-5 text-green-600 rounded" ${checked}>
                             <span class="ml-3 font-medium text-gray-700">${t.name}</span>
+                            ${isAuto}
                         </label>
                     `;
                 });
@@ -1116,10 +1155,8 @@
             document.getElementById('main-menu-container').classList.add('hidden');
             document.getElementById('lesson-app-container').classList.remove('hidden');
             
-            // Auto delete old
             cleanupOldLessons();
 
-            // Setup User Selector
             const userSelect = document.getElementById('lesson-user-select');
             userSelect.innerHTML = '<option>載入中...</option>';
             getDocs(getColRef('users')).then(snap => {
@@ -1272,12 +1309,40 @@
                     createdAt: serverTimestamp()
                 });
                 document.getElementById('lesson-msg').textContent = '已儲存!';
+                
+                // Sync to Fine App if needed
+                await syncDailyLessonToFines(currentUser.uid, lessonSelectedDate);
+                
             } catch (e) {
                 alert('儲存失敗: ' + e.message);
             }
             btn.disabled = false;
             btn.textContent = '儲存';
         };
+        
+        async function syncDailyLessonToFines(uid, dateStr) {
+            // Find all active fine events covering this date
+            // Note: In real app, querying by date range needs index. 
+            // We use a broader query and filter for simplicity given expected small volume.
+             const q = query(getColRef('fine_events'), orderBy('createdAt', 'desc'), limit(20));
+             const snap = await getDocs(q);
+             
+             snap.forEach(docSnap => {
+                 const event = docSnap.data();
+                 if (dateStr >= event.startDate && dateStr <= event.endDate) {
+                     const isParticipant = event.participants.some(p => p.uid === uid);
+                     if (isParticipant) {
+                         const dailyTask = event.tasks.find(t => t.type === 'daily_lesson');
+                         if (dailyTask) {
+                             const recordId = `${docSnap.id}_${dateStr}_${uid}`;
+                             const ref = getDocRef('fine_records', recordId);
+                             // Auto check
+                             window.toggleTask(recordId, dailyTask.id, true);
+                         }
+                     }
+                 }
+             });
+        }
 
         async function cleanupOldLessons() {
             const d = new Date();
