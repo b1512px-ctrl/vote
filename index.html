@@ -85,7 +85,7 @@
                 <button id="menu-logout-btn" class="underline hover:text-white ml-2">登出</button>
             </div>
         </header>
-        <main class="flex-1 p-6 max-w-4xl mx-auto w-full grid grid-cols-1 md:grid-cols-3 gap-6 content-center">
+        <main class="flex-1 p-6 max-w-5xl mx-auto w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 content-start">
             <div onclick="window.switchApp('vote')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-blue-500 transition-all group">
                 <div class="text-blue-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-check-to-slot"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">投票功能</h2>
@@ -96,11 +96,17 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">罰款統計</h2>
                 <p class="text-gray-500 text-sm">追蹤任務執行與罰款計算。</p>
             </div>
-            <!-- 新增每日定課 -->
             <div onclick="window.switchApp('lesson')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-teal-500 transition-all group">
                 <div class="text-teal-500 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-book-open-reader"></i></div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">每日定課</h2>
                 <p class="text-gray-500 text-sm">紀錄每日感恩、觀心書與待辦。</p>
+            </div>
+            
+            <!-- 系統管理 (柱專用) -->
+            <div id="admin-menu-card" onclick="window.switchApp('admin')" class="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl cursor-pointer border-l-8 border-purple-600 transition-all group hidden">
+                <div class="text-purple-600 text-4xl mb-4 group-hover:scale-110 transition-transform"><i class="fa-solid fa-gears"></i></div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">系統管理</h2>
+                <p class="text-gray-500 text-sm">成員註冊開關、使用者名單管理 (限)。</p>
             </div>
         </main>
     </div>
@@ -119,26 +125,6 @@
                 <p class="text-sm">操作被拒絕。請確認權限或 Firestore Rules。</p>
             </div>
              <div id="vote-dashboard-view">
-                 <!-- 柱專用設定 -->
-                 <div id="super-admin-settings" class="bg-white rounded-xl shadow-md p-4 mb-6 border border-indigo-200 hidden">
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center"><i class="fa-solid fa-gears text-indigo-600 text-xl mr-3"></i><div><h3 class="font-bold text-gray-800">系統管理</h3><p class="text-xs text-gray-500">成員註冊開關</p></div></div>
-                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
-                            <input type="checkbox" name="toggle" id="reg-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
-                            <label for="reg-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
-                        </div>
-                    </div>
-                    <p id="reg-status-text" class="text-right text-xs mt-1 text-gray-500 mb-4 border-b pb-2">讀取中...</p>
-                    
-                    <!-- 新增：使用者名單管理 -->
-                    <div class="mt-4">
-                        <h4 class="font-bold text-gray-700 mb-2 text-sm">使用者名單管理 (刪除無效帳號)</h4>
-                        <div id="admin-user-list" class="max-h-40 overflow-y-auto border rounded bg-gray-50 p-2 space-y-1">
-                            <p class="text-xs text-gray-400">載入中...</p>
-                        </div>
-                    </div>
-                </div>
-                
                 <div id="create-event-section" class="bg-white rounded-xl shadow-md p-6 mb-8 border-l-4 hidden">
                     <h2 class="text-lg font-semibold mb-4 text-gray-700">發起新活動</h2>
                     <div class="flex flex-col md:flex-row gap-3">
@@ -268,7 +254,7 @@
         </header>
 
         <main class="max-w-4xl mx-auto px-4 py-6">
-            <!-- 頂部功能列: 選擇人員 + 新增按鈕 -->
+            <!-- 頂部功能列 -->
             <div class="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-teal-500">
                 <div class="flex items-center gap-2 w-full md:w-auto">
                     <label class="text-sm font-bold text-gray-600">查看人員:</label>
@@ -277,14 +263,13 @@
                     </select>
                 </div>
                 <div class="flex items-center gap-2 w-full md:w-auto justify-end">
-                     <!-- 新增按鈕 -->
                      <button id="lesson-add-btn" onclick="window.openLessonForm()" class="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg font-bold text-sm shadow transition-colors flex items-center hidden">
                         <i class="fa-solid fa-plus mr-1"></i> 新增/編輯
                      </button>
                 </div>
             </div>
             
-            <!-- 視圖1: 列表模式 (預設) -->
+            <!-- 視圖1: 列表模式 -->
             <div id="lesson-list-view">
                 <div class="bg-gray-50 rounded-xl border border-gray-200 p-6">
                     <h3 class="text-lg font-bold text-gray-600 mb-4 flex items-center justify-between">
@@ -301,7 +286,6 @@
                         <p class="text-gray-400 text-sm col-span-full">載入中...</p>
                     </div>
                     
-                    <!-- 分頁控制 -->
                     <div class="flex justify-center mt-6 gap-2" id="lesson-pagination"></div>
                 </div>
             </div>
@@ -317,7 +301,6 @@
                 <div class="bg-white rounded-xl shadow-lg p-6 mb-8 relative">
                     <div id="lesson-overlay" class="absolute inset-0 bg-gray-100/50 z-10 hidden flex items-center justify-center rounded-xl cursor-not-allowed"></div>
                     
-                    <!-- 日期選擇區塊 -->
                     <div class="text-center mb-6 border-b pb-4 flex justify-center">
                         <div class="relative w-48 group cursor-pointer" onclick="try{document.getElementById('lesson-form-date').showPicker()}catch(e){document.getElementById('lesson-form-date').focus()}">
                             <input type="date" id="lesson-form-date" class="absolute inset-0 w-full h-full opacity-0 pointer-events-none" tabindex="-1">
@@ -360,12 +343,52 @@
         <!-- 隱藏的匯出容器 -->
         <div id="export-canvas-container"></div>
     </div>
+    
+    <!-- 6. 系統管理功能 (Admin App) -->
+    <div id="admin-app-container" class="hidden min-h-screen pb-10">
+        <header class="bg-purple-700 text-white shadow-lg sticky top-0 z-10">
+            <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-gears"></i>系統管理</h1>
+                <button onclick="window.backToMenu()" class="text-sm bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors"><i class="fa-solid fa-house mr-1"></i>選單</button>
+            </div>
+        </header>
+        <main class="max-w-4xl mx-auto px-4 py-6">
+            <div class="bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500">
+                <!-- 註冊開關 -->
+                <div class="flex justify-between items-center mb-6 pb-6 border-b border-gray-100">
+                    <div>
+                        <h3 class="font-bold text-gray-800 text-lg">成員註冊控制</h3>
+                        <p class="text-sm text-gray-500 mt-1">關閉後新成員將無法註冊</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" name="toggle" id="admin-reg-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer border-gray-300"/>
+                            <label for="admin-reg-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                        </div>
+                        <p id="admin-reg-status" class="text-xs mt-1 font-bold text-gray-400">讀取中...</p>
+                    </div>
+                </div>
+                
+                <!-- 使用者名單 -->
+                <div>
+                    <h3 class="font-bold text-gray-800 text-lg mb-4">使用者名單管理</h3>
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                        <div id="system-user-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <p class="text-gray-400 text-sm text-center">載入中...</p>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mt-2">* 刪除此處資料不會影響 Authentication 帳號，但會移除該員在各功能的顯示</p>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove, onSnapshot, serverTimestamp, query, orderBy, where, limit, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Config
         let firebaseConfig;
         try { if (typeof __firebase_config !== 'undefined') firebaseConfig = JSON.parse(__firebase_config); } catch (e) {}
         if (!firebaseConfig) {
@@ -564,6 +587,7 @@
             document.getElementById('vote-app-container').classList.add('hidden');
             document.getElementById('fine-app-container').classList.add('hidden');
             document.getElementById('lesson-app-container').classList.add('hidden');
+            document.getElementById('admin-app-container').classList.add('hidden');
             window.resetLogin();
         }
 
@@ -573,9 +597,17 @@
             document.getElementById('vote-app-container').classList.add('hidden');
             document.getElementById('fine-app-container').classList.add('hidden');
             document.getElementById('lesson-app-container').classList.add('hidden');
+            document.getElementById('admin-app-container').classList.add('hidden');
             
             const roleStr = isAdmin ? '管理員' : (isMember ? '成員' : '訪客');
             document.getElementById('menu-user-display').textContent = `${roleStr}: ${displayName}`;
+            
+            // Show Admin Card if Super Admin
+            const adminCard = document.getElementById('admin-menu-card');
+            if(adminCard) {
+                if (displayName === SUPER_ADMIN) adminCard.classList.remove('hidden');
+                else adminCard.classList.add('hidden');
+            }
         }
 
         window.switchApp = (appName) => {
@@ -586,6 +618,9 @@
             } else if (appName === 'lesson') {
                 if (!isAdmin && !isMember) return alert("權限不足: 訪客無法進入每日定課");
                 initLessonApp();
+            } else if (appName === 'admin') {
+                 if (displayName !== SUPER_ADMIN) return alert("權限不足");
+                 initAdminApp();
             }
         };
 
@@ -594,6 +629,7 @@
             if (unsubVotes) unsubVotes();
             if (unsubFineEvents) unsubFineEvents();
             if (unsubUserList) unsubUserList();
+            if (unsubSysUsers) unsubSysUsers();
             showMenuUI();
         };
 
@@ -610,7 +646,6 @@
             const createBtn = document.getElementById('create-event-btn');
             const addVoteBtn = document.getElementById('add-vote-btn');
             const cvHeader = document.getElementById('cv-header-text');
-            const settings = document.getElementById('super-admin-settings');
             const dateDisplayBox = document.getElementById('date-display-box');
 
             if (isAdmin) {
@@ -622,8 +657,6 @@
                 if(cvHeader) cvHeader.className = "flex items-center mb-2 text-blue-800 text-sm font-bold";
                 if(dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 guestHint.classList.add('hidden');
-                settings.classList[displayName === SUPER_ADMIN ? 'remove' : 'add']('hidden');
-                if(displayName === SUPER_ADMIN) initSettingsToggle();
 
             } else if (isMember) {
                 header.className = "bg-gray-900 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
@@ -634,38 +667,13 @@
                 if(cvHeader) cvHeader.className = "flex items-center mb-2 text-gray-900 text-sm font-bold";
                 if(dateDisplayBox) dateDisplayBox.className = "w-full border rounded-lg px-3 py-2 bg-white flex justify-between items-center h-[42px] transition-colors border-gray-300";
                 guestHint.classList.add('hidden');
-                settings.classList.add('hidden');
             } else {
                 header.className = "bg-gray-600 text-white shadow-lg sticky top-0 z-10 transition-colors duration-300";
                 createSec.classList.add('hidden');
                 createVoteSec.classList.add('hidden');
                 guestHint.classList.remove('hidden');
-                settings.classList.add('hidden');
             }
             window.loadVoteDashboard();
-        }
-        
-        async function initSettingsToggle() {
-            const status = document.getElementById('reg-status-text');
-            const toggle = document.getElementById('reg-toggle');
-            status.textContent = "讀取中...";
-            try {
-                const snap = await getDoc(getDocRef('events', 'system_settings'));
-                let open = true;
-                if (snap.exists()) open = snap.data().memberRegistrationOpen !== false;
-                toggle.checked = open;
-                status.textContent = open ? "成員註冊：已開放" : "已關閉";
-                status.className = open ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
-                toggle.onchange = async () => {
-                    const newState = toggle.checked;
-                    status.textContent = newState ? "成員註冊：已開放" : "已關閉";
-                    status.className = newState ? "text-right text-xs mt-1 text-green-600 font-bold" : "text-right text-xs mt-1 text-red-500 font-bold";
-                    await setDoc(getDocRef('events', 'system_settings'), { memberRegistrationOpen: newState }, { merge: true });
-                };
-            } catch(e) { console.error(e); }
-            
-            // Init System User List for Admin
-            initSystemUserList();
         }
 
         window.loadVoteDashboard = function() {
@@ -1001,45 +1009,6 @@
             });
         }
 
-        // --- ADMIN USER MANAGEMENT ---
-        function initSystemUserList() {
-            const list = document.getElementById('admin-user-list');
-            if(!list) return;
-            list.innerHTML = '<p class="text-xs text-gray-400">載入中...</p>';
-            
-            onSnapshot(getColRef('users'), (snap) => {
-                list.innerHTML = '';
-                if (snap.empty) {
-                    list.innerHTML = '<p class="text-xs text-gray-400">無使用者資料</p>';
-                    return;
-                }
-                
-                snap.forEach(doc => {
-                    const u = doc.data();
-                    const item = document.createElement('div');
-                    item.className = "flex justify-between items-center text-sm p-1 hover:bg-gray-100 rounded";
-                    item.innerHTML = `
-                        <span>${u.name} <span class="text-gray-400 text-xs">(${u.role || 'Member'})</span></span>
-                        <button onclick="window.deleteSystemUser('${doc.id}', '${u.name}')" class="text-red-400 hover:text-red-600 px-2">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    `;
-                    list.appendChild(item);
-                });
-            });
-        }
-
-        window.deleteSystemUser = async (uid, name) => {
-            if(confirm(`確定要從資料庫移除「${name}」嗎？\n注意：這不會刪除 Authentication 帳號，僅刪除名單資料。`)) {
-                try {
-                    await deleteDoc(getDocRef('users', uid));
-                    alert('已移除');
-                } catch(e) {
-                    alert('移除失敗: ' + e.message);
-                }
-            }
-        };
-
         // --- LESSON APP LOGIC ---
         let lessonSelectedUid = null;
         let lessonSelectedDate = null;
@@ -1078,6 +1047,7 @@
                     userSelect.appendChild(opt);
                 }
                 
+                // Init with current user
                 lessonSelectedUid = userSelect.value;
                 showLessonListView();
             });
@@ -1110,16 +1080,19 @@
             
             document.getElementById('lesson-list-view').classList.add('hidden');
             document.getElementById('lesson-form-view').classList.remove('hidden');
-            document.getElementById('form-date-title').textContent = d.replace(/-/g, '/');
             
-            // Reset Date Picker text in Form
-            const formDateInput = document.getElementById('lesson-form-date');
+            // Update Title (Fixed: don't target deleted ID)
             const formDateDisplay = document.getElementById('lesson-form-date-display');
-            if(formDateInput) {
-                formDateInput.value = d;
+            if(formDateDisplay) {
                 formDateDisplay.textContent = d.replace(/-/g, '/');
                 formDateDisplay.classList.remove('text-gray-800'); // Remove default style
                 formDateDisplay.classList.add('text-teal-700'); // Add active style
+            }
+            
+            // Reset Date Picker text in Form
+            const formDateInput = document.getElementById('lesson-form-date');
+            if(formDateInput) {
+                formDateInput.value = d;
             }
             
             // If viewing other's record (via clicking card), disable editing
@@ -1346,6 +1319,57 @@
                 } catch(err) { console.error('Export fail', err); }
             }
             container.innerHTML = ''; 
+        };
+        
+        // --- Admin App Logic ---
+        let unsubSysUsers = null;
+        function initAdminApp() {
+            document.getElementById('main-menu-container').classList.add('hidden');
+            document.getElementById('admin-app-container').classList.remove('hidden');
+            
+            initSettingsToggle(); // Admin view also uses this toggle
+            initSystemUserList();
+        }
+
+        function initSystemUserList() {
+            const list = document.getElementById('system-user-list');
+            if(!list) return;
+            list.innerHTML = '<p class="text-xs text-gray-400">載入中...</p>';
+            
+            unsubSysUsers = onSnapshot(getColRef('users'), (snap) => {
+                list.innerHTML = '';
+                if (snap.empty) {
+                    list.innerHTML = '<p class="text-xs text-gray-400 text-center">無使用者資料</p>';
+                    return;
+                }
+                
+                snap.forEach(doc => {
+                    const u = doc.data();
+                    const item = document.createElement('div');
+                    item.className = "flex justify-between items-center text-sm p-3 bg-white border rounded hover:bg-gray-50 transition-colors";
+                    item.innerHTML = `
+                        <div class="flex flex-col">
+                            <span class="font-bold text-gray-800">${u.name}</span>
+                            <span class="text-xs text-gray-400">${u.role || 'Member'} ${doc.id.startsWith('manual_') ? '(手動)' : ''}</span>
+                        </div>
+                        <button onclick="window.deleteSystemUser('${doc.id}', '${u.name}')" class="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors" title="刪除此人">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    `;
+                    list.appendChild(item);
+                });
+            });
+        }
+
+        window.deleteSystemUser = async (uid, name) => {
+            if(confirm(`確定要從資料庫移除「${name}」嗎？\n注意：這不會刪除 Authentication 帳號，僅刪除名單資料。`)) {
+                try {
+                    await deleteDoc(getDocRef('users', uid));
+                    alert('已移除');
+                } catch(e) {
+                    alert('移除失敗: ' + e.message);
+                }
+            }
         };
     </script>
 </body>
